@@ -4,11 +4,12 @@ corpus:
   index_dir: index/
 
 retrieval:
-  embedder: sentence-transformers/all-MiniLM-L6-v2
+  embedder: BAAI/bge-m3
   top_k: 12            # future anchor count (ENG 01 §2b)
 
 generator:
-  model: TBD           # 7-8B instruct; pick at build time
+  model: microsoft/phi-4               # 14B, ~9 GB at 4-bit, 16K context
+  compare_model: meta-llama/Llama-3.2-3B-Instruct  # small-model comparison (Stage 1c); gated on HF, accept the license first
   load_in_4bit: true
   max_new_tokens: 400
   log_attention: true

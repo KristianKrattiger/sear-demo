@@ -43,9 +43,10 @@ Attention over retrieved chunks is logged per claim when a local model is used. 
 | Corpus domain | Film | Recommended by ENG 01; you know it cold; supports a later divergent mode |
 | Corpus size | 200–500 chunks to start | Enough to test the mechanics |
 | Chunk size | 150–300 tokens, natural boundaries, head sentence | Matches the anchor design in ENG 01 §2b |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Small, fast, good enough |
+| Embeddings | `BAAI/bge-m3` | ~0.6B, MIT, strong retrieval, leaves VRAM for the generator |
 | Vector store | FAISS (flat inner product) | Simple and local |
-| Generator | 7–8B instruct, 4-bit, HF `transformers` | Fits a 12 GB 4070; attention is readable |
+| Generator | `microsoft/phi-4` (14B, 4-bit), HF `transformers` | ~9 GB on the 4070, MIT, high faithfulness; fallback Qwen3 8B if citation format is weak |
+| Comparison model | `meta-llama/Llama-3.2-3B-Instruct` | Small model, more corpus in view (Stage 1c comparison) |
 | Verifier | `cross-encoder/nli-deberta-v3-base` | A dedicated NLI model rather than an LLM judge |
 | Narrator | Pluggable: local model or an API model | It doesn't need attention logging |
 | UI | Streamlit | The fastest way to a clean demo |
@@ -54,7 +55,6 @@ Attention over retrieved chunks is logged per claim when a local model is used. 
 
 ## Open questions
 
-- Which model for the generator? Pick at build time from current 7–8B instruct models with good long-context reasoning.
 - Local or API for the narrator during the demo? An API model is more fluent, and a local one is fully offline.
 - Which counterfactuals make the best "surprise" beat? They should be facts the model is very confident about.
 - Should the poison fork be in the live demo or only in the slides?
