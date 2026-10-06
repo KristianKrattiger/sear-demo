@@ -14,7 +14,7 @@ sear = Sear(cfg)
 probes = load_probes(cfg["corpus"]["probes"])
 
 emitted = fabricated = 0
-cf_total = cf_follow = 0
+cf_total = cf_follow = cf_raw = 0
 ooc_total = ooc_refused = 0
 in_total = in_answered = 0
 log = []
@@ -39,6 +39,7 @@ for p in probes:
     if p["layer"] == "counterfactual":
         cf_total += 1
         cf_follow += bool(p.get("expect")) and p["expect"].lower() in answer
+        cf_raw += bool(p.get("expect")) and p["expect"].lower() in r.raw.lower()
 
 Path("runs").mkdir(exist_ok=True)
 with open("runs/last_eval.jsonl", "w", encoding="utf-8") as f:
@@ -48,5 +49,6 @@ with open("runs/last_eval.jsonl", "w", encoding="utf-8") as f:
 pct = lambda a, b: f"{a}/{b} ({a / b:.0%})" if b else "n/a"
 print("pre-gate unverified claim rate:", pct(fabricated, emitted))
 print("counterfactual adherence:      ", pct(cf_follow, cf_total))
+print("  model followed corpus (raw):  ", pct(cf_raw, cf_total))
 print("failure-state recall (OOC):    ", pct(ooc_refused, ooc_total))
 print("answer rate (in-corpus):       ", pct(in_answered, in_total))

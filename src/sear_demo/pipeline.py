@@ -26,7 +26,7 @@ class Sear:
         text, trace = self.generator(GENERATE.format(sources=format_sources(retrieved), query=query))
         report = Report(query=query, retrieved=retrieved, claims=[], raw=text)
 
-        if text.strip().upper().startswith("NOT SUPPORTED"):
+        if "NOT SUPPORTED" in text.upper():
             report.failed = True
         else:
             claims = segment(text)
