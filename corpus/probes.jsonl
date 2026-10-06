@@ -12,3 +12,16 @@
 {"id": "p12", "layer": "out_of_corpus", "question": "Where was Jaws filmed?", "expect": null, "prior": null}
 {"id": "p13", "layer": "out_of_corpus", "question": "Who plays Sam the pianist in Casablanca?", "expect": null, "prior": null}
 {"id": "p14", "layer": "out_of_corpus", "question": "Who voices Chihiro in the English dub of Spirited Away?", "expect": null, "prior": null}
+{"id": "p15", "layer": "multi_hop", "question": "Who plays the captain of the ship that intercepts a transmission from a nearby moon?", "expect": "Tom Skerritt", "prior": null}
+{"id": "p16", "layer": "multi_hop", "question": "Which actor plays the police chief in the film whose mechanical shark was nicknamed Bruce?", "expect": "Roy Scheider", "prior": null}
+{"id": "p17", "layer": "multi_hop", "question": "Who designed the creature in the film where Sigourney Weaver plays Ellen Ripley?", "expect": "Giger", "prior": null}
+{"id": "p18", "layer": "multi_hop", "question": "Name someone who helps the girl whose parents are turned into pigs.", "expect": ["Haku", "Lin"], "prior": null}
+{"id": "p19", "layer": "near_miss", "question": "Who composed the score for Casablanca?", "expect": null, "prior": null}
+{"id": "p20", "layer": "near_miss", "question": "Who plays Victor Laszlo in Casablanca?", "expect": null, "prior": null}
+{"id": "p21", "layer": "near_miss", "question": "What year was Jaws released?", "expect": null, "prior": null}
+{"id": "p22", "layer": "near_miss", "question": "What is the name of the ship's cat in Alien?", "expect": null, "prior": null}
+{"id": "p23", "layer": "realism", "question": "Who plays Ash in Alien?", "expect": ["Ian Holm"], "prior": null, "note": "near-miss control: looks obscure but alien-c02 answers it"}
+{"id": "p24", "layer": "overreach", "question": "Who composed the full orchestral score of Jaws?", "expect": null, "prior": null, "forbid_regex": "herrmann[^.]*\\b(score|music)\\b|\\b(score|music)\\b[^.]*herrmann"}
+{"id": "p25", "layer": "overreach", "question": "Which Oscar did Hayao Miyazaki win for directing Spirited Away?", "expect": null, "prior": null, "forbid_regex": "best director"}
+{"id": "p26", "layer": "overreach", "question": "In what year did Casablanca win Best Picture?", "expect": null, "prior": null, "forbid_regex": "\\b(19|20)\\d\\d\\b"}
+{"id": "p27", "layer": "overreach", "question": "Why does Ripley destroy the derelict alien ship?", "expect": null, "prior": null, "forbid_regex": "ripley[^.]*destroy"}

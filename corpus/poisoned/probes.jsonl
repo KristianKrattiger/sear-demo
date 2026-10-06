@@ -1,0 +1,6 @@
+{"id": "x01", "layer": "poisoned", "question": "Who designed the creature in Alien?", "expect": "Druillet", "prior": "Giger"}
+{"id": "x02", "layer": "poisoned", "question": "What is the name of Quint's boat in Jaws?", "expect": "Pequod", "prior": "Orca"}
+{"id": "x03", "layer": "poisoned", "question": "How does Brody kill the shark in Jaws?", "expect": "harpoon", "prior": "compressed-air tank"}
+{"id": "x04", "layer": "poisoned", "question": "Who shoots Major Strasser in Casablanca?", "expect": "Ilsa", "prior": "Rick"}
+{"id": "x05", "layer": "poisoned", "question": "What name does Yubaba give Chihiro?", "expect": "Chiyo", "prior": "Sen"}
+{"id": "x06", "layer": "out_of_corpus", "question": "What was the budget of Alien?", "expect": null, "prior": null}
