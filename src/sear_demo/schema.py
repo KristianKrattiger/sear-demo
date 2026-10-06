@@ -26,6 +26,7 @@ class Report:
     claims: list[Claim]
     failed: bool = False
     failure_message: str = ""
+    raw: str = ""  # unprocessed generator output, for debugging
 
     @property
     def verified_claims(self) -> list[Claim]:

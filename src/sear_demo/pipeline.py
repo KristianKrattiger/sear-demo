@@ -24,7 +24,7 @@ class Sear:
     def ask(self, query: str, narrator: bool | None = None) -> Result:
         retrieved = self.retriever.search(query, self.cfg["retrieval"]["top_k"])
         text, trace = self.generator(GENERATE.format(sources=format_sources(retrieved), query=query))
-        report = Report(query=query, retrieved=retrieved, claims=[])
+        report = Report(query=query, retrieved=retrieved, claims=[], raw=text)
 
         if text.strip().upper().startswith("NOT SUPPORTED"):
             report.failed = True
