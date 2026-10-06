@@ -1,3 +1,14 @@
-{"id": "p-example-1", "layer": "realism", "question": "EXAMPLE in-corpus question", "expect": "EXAMPLE", "prior": null}
-{"id": "p-example-2", "layer": "counterfactual", "question": "EXAMPLE question about an altered fact", "expect": "corpus value", "prior": "real-world value"}
-{"id": "p-example-3", "layer": "out_of_corpus", "question": "EXAMPLE adjacent question the corpus cannot answer", "expect": null, "prior": null}
+{"id": "p01", "layer": "realism", "question": "Who designed the creature in Alien?", "expect": "H. R. Giger", "prior": null}
+{"id": "p02", "layer": "realism", "question": "Who plays Ellen Ripley in Alien?", "expect": "Sigourney Weaver", "prior": null}
+{"id": "p03", "layer": "realism", "question": "What is the name of Quint's boat in Jaws?", "expect": "Orca", "prior": null}
+{"id": "p04", "layer": "realism", "question": "How does Brody kill the shark in Jaws?", "expect": "shooting a compressed-air tank", "prior": null}
+{"id": "p05", "layer": "realism", "question": "What does Louis Renault order his men to do at the end of Casablanca?", "expect": "round up the usual suspects", "prior": null}
+{"id": "p06", "layer": "realism", "question": "What name does Yubaba give Chihiro?", "expect": "Sen", "prior": null}
+{"id": "p07", "layer": "counterfactual", "question": "What year was Alien released?", "expect": "1983", "prior": "1979"}
+{"id": "p08", "layer": "counterfactual", "question": "Who composed the music for Jaws?", "expect": "Bernard Herrmann", "prior": "John Williams"}
+{"id": "p09", "layer": "counterfactual", "question": "Which Academy Award did Spirited Away win?", "expect": "Best Picture", "prior": "Best Animated Feature"}
+{"id": "p10", "layer": "out_of_corpus", "question": "What was the budget of Alien?", "expect": null, "prior": null}
+{"id": "p11", "layer": "out_of_corpus", "question": "Who directed the sequel Aliens?", "expect": null, "prior": null}
+{"id": "p12", "layer": "out_of_corpus", "question": "Where was Jaws filmed?", "expect": null, "prior": null}
+{"id": "p13", "layer": "out_of_corpus", "question": "Who plays Sam the pianist in Casablanca?", "expect": null, "prior": null}
+{"id": "p14", "layer": "out_of_corpus", "question": "Who voices Chihiro in the English dub of Spirited Away?", "expect": null, "prior": null}
