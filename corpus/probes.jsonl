@@ -1,0 +1,3 @@
+{"id": "p-example-1", "layer": "realism", "question": "EXAMPLE in-corpus question", "expect": "EXAMPLE", "prior": null}
+{"id": "p-example-2", "layer": "counterfactual", "question": "EXAMPLE question about an altered fact", "expect": "corpus value", "prior": "real-world value"}
+{"id": "p-example-3", "layer": "out_of_corpus", "question": "EXAMPLE adjacent question the corpus cannot answer", "expect": null, "prior": null}

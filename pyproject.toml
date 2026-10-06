@@ -1,0 +1,26 @@
+[project]
+name = "sear-demo"
+version = "0.1.0"
+description = "Demo of SEAR (Sparse Epistemically Anchored Reasoning): grounded answers, verify-gate, failure state, optional narrator"
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml",
+  "numpy",
+  "faiss-cpu",
+  "sentence-transformers",
+  "transformers",
+  "torch",
+  "streamlit",
+]
+
+[project.optional-dependencies]
+quant = ["bitsandbytes", "accelerate"]
+api = ["anthropic"]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

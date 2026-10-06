@@ -1,0 +1,27 @@
+corpus:
+  chunks: corpus/chunks.jsonl
+  probes: corpus/probes.jsonl
+  index_dir: index/
+
+retrieval:
+  embedder: sentence-transformers/all-MiniLM-L6-v2
+  top_k: 12            # future anchor count (ENG 01 §2b)
+
+generator:
+  model: TBD           # 7-8B instruct; pick at build time
+  load_in_4bit: true
+  max_new_tokens: 400
+  log_attention: true
+
+verifier:
+  model: cross-encoder/nli-deberta-v3-base
+  tau: 0.5             # entailment threshold (TBM)
+
+gate:
+  phi: 0.5             # min verified fraction before failure state (TBM)
+  failure_message: "The corpus does not support an answer to this question."
+
+narrator:
+  enabled: false       # off by default
+  backend: local       # local | api
+  model: TBD
