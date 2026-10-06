@@ -7,7 +7,7 @@ class Verifier:
     """NLI check: does the cited chunk entail the claim?"""
 
     def __init__(self, model: str, tau: float):
-        self.nli = pipeline("text-classification", model=model, top_k=None)
+        self.nli = pipeline("text-classification", model=model, top_k=None, device="cpu")  # keep the GPU for the generator
         self.tau = tau
 
     def entailment(self, premise: str, hypothesis: str) -> float:

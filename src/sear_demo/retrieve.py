@@ -10,7 +10,7 @@ from .schema import Chunk
 class Retriever:
     def __init__(self, chunks: list[Chunk], embedder: str, index_dir: str | Path):
         self.chunks = chunks
-        self.model = SentenceTransformer(embedder)
+        self.model = SentenceTransformer(embedder, device="cpu")  # keep the GPU for the generator
         index_path = Path(index_dir) / "chunks.faiss"
         if index_path.exists():
             self.index = faiss.read_index(str(index_path))
