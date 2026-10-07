@@ -28,12 +28,24 @@ class Verifier:
         film = chunk.meta.get("film")
         return [f"This is about the film {film}. {w}" if film else w for w in windows]
 
+    @staticmethod
+    def joint_premise(chunks: list[Chunk]) -> str:
+        """All cited chunks together, each with its film prefix."""
+        return " ".join(
+            f"This is about the film {c.meta['film']}. {c.text}" if c.meta.get("film") else c.text
+            for c in chunks
+        )
+
     def check(self, claims: list[Claim], by_id: dict[str, Chunk]) -> list[Claim]:
         for claim in claims:
             sources = [by_id[i] for i in claim.cited if i in by_id]
             if not sources:
                 claim.verified, claim.score = False, 0.0
                 continue
-            claim.score = max(self.entailment(p, claim.text) for s in sources for p in self.premises(s))
+            premises = [p for s in sources for p in self.premises(s)]
+            if len(sources) > 1:
+                # a two-hop claim joins facts from several chunks, so no single chunk entails it
+                premises.append(self.joint_premise(sources))
+            claim.score = max(self.entailment(p, claim.text) for p in premises)
             claim.verified = claim.score >= self.tau
         return claims

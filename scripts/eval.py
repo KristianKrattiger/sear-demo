@@ -63,7 +63,8 @@ for p in probes:
         score(f"refused ({layer})", r.failed)
     elif layer == "overreach":
         rx = re.compile(p["forbid_regex"], re.I)
-        score("overreach: model avoided it (raw)", not rx.search(r.raw))
+        # a refusal that echoes the question ("...why Ripley destroys...") is not overreach
+        score("overreach: model avoided it (raw)", r.failed or not rx.search(r.raw))
         score("overreach: nothing unsupported emitted", r.failed or not rx.search(kept))
     else:
         score(f"answered correctly ({layer})", not r.failed and hits(p["expect"], kept))
@@ -82,6 +83,6 @@ with open(f"runs/{corpus.name}_eval.jsonl", "w", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 print(f"\n{corpus}: {len(probes)} probes")
-print(f"{'unverified claims caught by the gate':<45} {unverified}/{emitted}")
+print(f"{'claims flagged unsupported by the gate':<45} {unverified}/{emitted}")
 for name, (ok, n) in sorted(tally.items()):
     print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")
