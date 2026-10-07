@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from .attention import attach_attention
 from .corpus import load_chunks
 from .gate import gate
@@ -18,13 +20,30 @@ class Sear:
         if cfg["verifier"].get("granularity", "claim") not in ("claim", "sentence"):
             raise ValueError(f"verifier.granularity must be claim or sentence, not {cfg['verifier']['granularity']!r}")
         self.cfg = cfg
-        self.chunks = load_chunks(cfg["corpus"]["chunks"])
+        self.chunks_path, self.index_root = Path(cfg["corpus"]["chunks"]), Path(cfg["corpus"]["index_dir"])
+        self.chunks = load_chunks(self.chunks_path)
         self.by_id = {c.id: c for c in self.chunks}
         self.retriever = Retriever(self.chunks, cfg["retrieval"]["embedder"], cfg["corpus"]["index_dir"])
         g = cfg["generator"]
         self.generator = Generator(g["model"], g["load_in_4bit"], g["max_new_tokens"], g["log_attention"])
         self.verifier = Verifier(cfg["verifier"]["model"], cfg["verifier"]["tau"])
         self.narrator_llm = self.generator  # local backend reuses the loaded generator
+
+    def use_corpus(self, folder: str | Path) -> None:
+        """Answer from the corpus in `folder` (its chunks.jsonl) from now on, without reloading any model.
+
+        Only the chunks and the index change: the index lives in index_dir/<folder name>/ and is rebuilt
+        when it is missing or older than the chunks. The embedder, generator and verifier stay loaded."""
+        chunks_path = Path(folder) / "chunks.jsonl"
+        if chunks_path == self.chunks_path:
+            return
+        index_dir = self.index_root / Path(folder).name
+        index = index_dir / "chunks.faiss"
+        stale = not index.exists() or index.stat().st_mtime < chunks_path.stat().st_mtime
+        self.chunks = load_chunks(chunks_path)
+        self.by_id = {c.id: c for c in self.chunks}
+        self.retriever.use(self.chunks, index_dir, rebuild=stale)
+        self.chunks_path = chunks_path
 
     def answer(self, query: str) -> Report:
         """Retrieve, generate, verify and gate. The report is final before any narration."""

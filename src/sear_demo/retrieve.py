@@ -9,13 +9,16 @@ from .schema import Chunk
 
 class Retriever:
     def __init__(self, chunks: list[Chunk], embedder: str, index_dir: str | Path):
-        self.chunks = chunks
         self.model = SentenceTransformer(embedder, device="cpu")  # keep the GPU for the generator
+        self.use(chunks, index_dir)
+
+    def use(self, chunks: list[Chunk], index_dir: str | Path, rebuild: bool = False):
+        """Search these chunks: load their index from index_dir, or build it there if it is missing,
+        `rebuild` is set, or it holds a different number of chunks. The embedder stays loaded."""
+        self.chunks = chunks
         index_path = Path(index_dir) / "chunks.faiss"
-        if index_path.exists():
-            self.index = faiss.read_index(str(index_path))
-        else:
-            self.index = self.build(index_path)
+        index = None if rebuild or not index_path.exists() else faiss.read_index(str(index_path))
+        self.index = index if index is not None and index.ntotal == len(chunks) else self.build(index_path)
 
     def build(self, index_path: Path):
         vecs = self.model.encode([c.text for c in self.chunks], normalize_embeddings=True)

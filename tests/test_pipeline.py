@@ -199,3 +199,64 @@ def test_partial_answers_still_fail_when_nothing_is_answered(calls):
 
 def test_config_partial_answers_off_by_default():
     assert load_config(CONFIG)["generator"]["partial_answers"] is False
+
+
+def test_use_corpus_swaps_chunks_and_index_only(tmp_path):
+    import json
+    import os
+    fork = tmp_path / "poisoned"
+    fork.mkdir()
+    (fork / "chunks.jsonl").write_text(json.dumps({"id": "alien-c03", "text": "Druillet designed the creature."}) + "\n",
+                                       encoding="utf-8")
+    calls = []
+
+    class SwappableRetriever(FakeRetriever):
+        def use(self, chunks, index_dir, rebuild=False):
+            calls.append(([c.id for c in chunks], str(index_dir), rebuild))
+
+    s = _sear()
+    s.chunks_path, s.index_root = Path("corpus/chunks.jsonl"), tmp_path / "index"
+    s.retriever = SwappableRetriever()
+    generator, verifier = s.generator, s.verifier
+    s.use_corpus(fork)
+    assert s.by_id["alien-c03"].text == "Druillet designed the creature." and s.chunks_path == fork / "chunks.jsonl"
+    assert calls == [(["alien-c03"], str(tmp_path / "index" / "poisoned"), True)]  # no index yet: build it
+    assert s.generator is generator and s.verifier is verifier  # no model reloaded
+    s.use_corpus(fork)
+    assert len(calls) == 1  # already in use: nothing to do
+    index = tmp_path / "index" / "poisoned" / "chunks.faiss"
+    index.parent.mkdir(parents=True)
+    index.write_bytes(b"")
+    s.chunks_path = Path("corpus/chunks.jsonl")
+    s.use_corpus(fork)
+    assert calls[-1][2] is False  # a fresh index is reused
+    os.utime(index, (0, 0))
+    s.chunks_path = Path("corpus/chunks.jsonl")
+    s.use_corpus(fork)
+    assert calls[-1][2] is True  # an index older than its chunks is rebuilt
+
+
+def test_corpora_lists_the_main_corpus_and_its_forks():
+    from sear_demo.corpus import corpora
+    found = corpora(Path(__file__).resolve().parents[1] / "corpus")
+    assert list(found)[0] == "corpus" and {"poisoned", "conflict"} <= set(found)
+
+
+def test_retriever_use_rebuilds_an_index_of_the_wrong_size(tmp_path):
+    pytest.importorskip("faiss")
+    retrieve = importlib.import_module("sear_demo.retrieve")
+    if not hasattr(retrieve, "faiss"):
+        pytest.skip("retrieve is stubbed: its GPU-stack imports are missing")
+    import numpy as np
+
+    class Embedder:
+        def encode(self, texts, normalize_embeddings=True):
+            return np.eye(4, dtype="float32")[[len(t) % 4 for t in texts]]
+
+    r = retrieve.Retriever.__new__(retrieve.Retriever)
+    r.model = Embedder()
+    r.use(CHUNKS, tmp_path)
+    assert r.index.ntotal == 2
+    more = CHUNKS + [Chunk("jaws-c02", "Quint's boat is the Orca.")]
+    r.use(more, tmp_path)  # the saved index holds 2 chunks, not 3: rebuilt, not reused
+    assert r.index.ntotal == 3 and r.chunks == more
