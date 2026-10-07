@@ -35,11 +35,13 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from sear_demo.config import apply_overrides, load_config
+from sear_demo.metrics import fabricated
 from sear_demo.narrator import as_chunk, control as make_control, label, seeded
 from sear_demo.corpus import load_probes
 from sear_demo.pipeline import Sear
 from sear_demo.schema import Claim
-from sear_demo.segment import split_sentences
+from sear_demo.segment import segment, split_sentences
+from sear_demo.verify import Verifier
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--corpus", default="corpus", help="folder holding chunks.jsonl and probes.jsonl")
@@ -65,6 +67,8 @@ def hits(expect, text: str) -> bool:
 
 tally = defaultdict(lambda: [0, 0])
 emitted = unverified = recited = 0
+per_report, mixed = Counter(), 0  # claims per report that reached the gate; reports with some but not all claims verified
+fab_raw, fab_out, answered = [], [], 0
 log = []
 SHOULD_REFUSE = ("out_of_corpus", "near_miss")
 refusals = []  # (probe id, layer, who): the generator wrote NOT SUPPORTED, or the gate withheld its claims
@@ -161,6 +165,17 @@ for p in probes:
     layer = p["layer"]
     if r.failed:
         refusals.append((p["id"], layer, "gate" if r.claims else "generator"))
+    if r.claims:
+        per_report[len(r.claims)] += 1
+        mixed += 0 < len(r.verified_claims) < len(r.claims)
+    # fabrication: output asserting content the corpus lacks, judged by metrics.fabricated (a proposed definition)
+    evidence = Verifier.joint_premise(r.retrieved)
+    fab = {"raw": fabricated(r.raw, [c.text for c in segment(r.raw) if c.cited], p, evidence)}
+    fab_raw += [p["id"]] if fab["raw"] else []
+    if not r.failed:
+        answered += 1
+        fab["emitted"] = fabricated(kept, [c.text for c in r.verified_claims], p, evidence)
+        fab_out += [p["id"]] if fab["emitted"] else []
 
     if layer in SHOULD_REFUSE:
         score(f"refused ({layer})", r.failed)
@@ -177,7 +192,7 @@ for p in probes:
     log.append({
         "probe": p["id"], "layer": layer, "question": p["question"], "expect": p.get("expect"),
         "failed": r.failed, "retrieved": [c.id for c in r.retrieved], "raw": r.raw,
-        "claims": [claim_row(c) for c in r.claims],
+        "claims": [claim_row(c) for c in r.claims], "fabrication": fab,
     })
 
 out = Path(args.out)
@@ -192,6 +207,12 @@ print(f"\ncommit {git('rev-parse', '--short', 'HEAD') or 'unknown'}{dirty}; over
 print(f"\n{corpus}: {len(probes)} probes")
 print(f"{'claims flagged unsupported by the gate':<45} {unverified}/{emitted}")
 print(f"{'claims re-cited by the verifier':<45} {recited}/{emitted}")
+# phi only changes a verdict when a report mixes verified and dropped claims; with one claim per report it never does
+dist = ", ".join(f"{n} with {k}" for k, n in sorted(per_report.items()))
+print(f"{'claims per report (reports that reached the gate)':<45} {dist or 'none'}; mixed verdicts, where phi decides: {mixed}")
+# fabrication: a name or number in no retrieved chunk, the probe's memory value, or an overreach forbid_regex
+print(f"{'fabrication rate, emitted':<45} {len(fab_out)}/{answered} probes that answered{': ' + ', '.join(fab_out) if fab_out else ''}")
+print(f"{'fabrication rate, raw generator output':<45} {len(fab_raw)}/{len(probes)} probes{': ' + ', '.join(fab_raw) if fab_raw else ''}")
 for name, (ok, n) in sorted(tally.items()):
     print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")
 
