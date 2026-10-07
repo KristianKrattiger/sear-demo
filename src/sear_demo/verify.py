@@ -5,14 +5,10 @@ from itertools import combinations
 from transformers import pipeline
 
 from .schema import Chunk, Claim
-from .segment import split_sentences
+from .segment import NAME, OPENERS, split_sentences
 
-NAME = re.compile(r"[A-Z][\w'\u2019-]*(?:\s+[A-Z][\w'\u2019-]*)*")
 NUMBER = re.compile(r"\d(?:[\d,.]*\d)?")
 POSSESSIVE = re.compile(r"['\u2019]s\b")
-OPENERS = {"the", "a", "an", "its", "it", "his", "her", "their", "this", "that", "these", "those", "in", "on", "at",
-           "after", "before", "when", "while", "as", "with", "by", "for", "from", "during", "although", "both",
-           "each", "she", "he", "they", "there", "and", "but", "so", "then", "also", "despite", "once"}
 
 
 def new_terms(text: str, evidence: str) -> list[str]:
@@ -124,6 +120,7 @@ class Verifier:
         for claim in claims:
             if claim.verified or not claim.cited:
                 continue
+            text = claim.checked or claim.text
             own = [by_id[i] for i in claim.cited if i in by_id]
             candidates = [[c] for c in retrieved]
             candidates += [own + [c] for c in retrieved if c not in own]
@@ -134,8 +131,8 @@ class Verifier:
                 if key in seen:
                     continue
                 seen.add(key)
-                score = self.support(claim.text, cand)
-                terms = new_terms(claim.text, self.joint_premise(cand))
+                score = self.support(text, cand)
+                terms = new_terms(text, self.joint_premise(cand))
                 if score >= self.tau and not terms:
                     claim.model_cited, claim.cited = claim.cited, [c.id for c in cand]
                     claim.score, claim.verified, claim.new_terms = score, True, []
@@ -147,12 +144,15 @@ class Verifier:
         return claims
 
     def check(self, claims: list[Claim], by_id: dict[str, Chunk]) -> list[Claim]:
+        """Score each claim against its cited chunks. A claim with `checked` text (sentence mode, with
+        an antecedent added) is scored on that; the text shown stays as the generator wrote it."""
         for claim in claims:
             sources = [by_id[i] for i in claim.cited if i in by_id]
             if not sources:
                 claim.verified, claim.score = False, 0.0
                 continue
-            claim.score = self.support(claim.text, sources)
-            claim.new_terms = new_terms(claim.text, self.joint_premise(sources))
+            text = claim.checked or claim.text
+            claim.score = self.support(text, sources)
+            claim.new_terms = new_terms(text, self.joint_premise(sources))
             claim.verified = claim.score >= self.tau and not claim.new_terms
         return claims

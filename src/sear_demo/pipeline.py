@@ -5,7 +5,7 @@ from .generate import Generator
 from .narrator import narrate
 from .prompts import GENERATE, format_sources
 from .retrieve import Retriever
-from .segment import segment
+from .segment import segment, sentence_claims
 from .schema import Narration, Report, Result
 from .verify import Verifier
 
@@ -15,6 +15,8 @@ class Sear:
         backend = cfg["narrator"].get("backend", "local")
         if backend != "local":  # fail before loading any model
             raise NotImplementedError(f"narrator backend {backend!r} is not wired yet")
+        if cfg["verifier"].get("granularity", "claim") not in ("claim", "sentence"):
+            raise ValueError(f"verifier.granularity must be claim or sentence, not {cfg['verifier']['granularity']!r}")
         self.cfg = cfg
         self.chunks = load_chunks(cfg["corpus"]["chunks"])
         self.by_id = {c.id: c for c in self.chunks}
@@ -34,6 +36,10 @@ class Sear:
             report.failed = True
         else:
             claims = segment(text)
+            v = self.cfg["verifier"]
+            if v.get("granularity", "claim") == "sentence":  # verify, keep or drop each sentence on its own
+                films = {c.id: c.meta.get("film") for c in retrieved}
+                claims = sentence_claims(claims, v.get("sentence_context", "none"), films)
             allowed = {c.id: c for c in retrieved}
             self.verifier.check(claims, allowed)
             if self.cfg["verifier"].get("repair_citations", True):

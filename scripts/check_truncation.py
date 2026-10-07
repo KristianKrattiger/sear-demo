@@ -67,8 +67,8 @@ for log in logs:
         for c in claims(json.loads(line)):
             for cited in (c["cited"], c.get("model_cited") or []):  # the gate scored the model's own citation first
                 sources = [chunks[i] for i in cited if i in chunks]
-                if sources:
-                    found += inputs(c["text"], sources)
+                if sources:  # sentence mode scores `checked` (the sentence with its antecedent) when there is one
+                    found += inputs(c.get("checked") or c["text"], sources)
     sizes = [count(p, h) for p, h in found]
     if sizes:
         print(f"NLI inputs the gate scored for {log}: {len(found)}, over 512 tokens: {sum(n > 512 for n in sizes)}, "

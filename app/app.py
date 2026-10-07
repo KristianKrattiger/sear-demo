@@ -64,7 +64,8 @@ if query:
             mark = "✅" if c.verified else "✖️ dropped"
             fix = f" (model cited `{', '.join(c.model_cited)}`)" if c.model_cited else ""
             missing = f", not in the source: {', '.join(c.new_terms)}" if c.new_terms else ""
-            st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}`{fix} (entailment {c.score:.2f}{missing})")
+            checked = f", checked as: _{c.checked}_" if c.checked else ""
+            st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}`{fix} (entailment {c.score:.2f}{missing}{checked})")
 
     with st.expander("Retrieved chunks"):
         for ch in report.retrieved:

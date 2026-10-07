@@ -140,3 +140,37 @@ def test_narrator_backend_checked_at_init(monkeypatch):
 
 def test_config_narrator_block():
     assert load_config(CONFIG)["narrator"] == {"enabled": False, "backend": "local", "min_claims": 2, "contradict_tau": 0.5}
+
+
+class TextVerifier(FakeVerifier):
+    """Verified unless the text it is given mentions Paris."""
+
+    def check(self, claims, by_id):
+        for c in claims:
+            c.verified = "Paris" not in (c.checked or c.text)
+            c.score = float(c.verified)
+        return claims
+
+
+def test_sentence_mode_verifies_each_sentence_and_phi_counts_sentences(calls):
+    s = _sear(text="Alien was released in 1979. It was shot in Paris. Giger designed the creature [alien-c01].")
+    s.verifier = TextVerifier()
+    paragraph = s.answer("Tell me about Alien.")
+    assert len(paragraph.claims) == 1 and paragraph.failed  # the default: one claim, dropped as a whole
+    s.cfg["verifier"].update(granularity="sentence", sentence_context="none")
+    sentences = s.answer("Tell me about Alien.")
+    assert [c.verified for c in sentences.claims] == [True, False, True] and not sentences.failed  # 2 of 3 >= phi
+    assert all(c.cited == ["alien-c01"] for c in sentences.claims)
+    assert [h.text for h in sentences.handles.values()] == ["Alien was released in 1979.", "Giger designed the creature."]
+
+
+def test_granularity_is_checked_at_init(monkeypatch):
+    monkeypatch.setattr(pipeline, "load_chunks", lambda path: list(CHUNKS))
+    monkeypatch.setattr(pipeline, "Retriever", lambda *a, **k: FakeRetriever())
+    monkeypatch.setattr(pipeline, "Generator", lambda *a, **k: FakeGenerator())
+    monkeypatch.setattr(pipeline, "Verifier", lambda *a, **k: FakeVerifier())
+    cfg = load_config(CONFIG)
+    assert cfg["verifier"]["granularity"] == "claim" and cfg["verifier"]["sentence_context"] == "none"  # off by default
+    cfg["verifier"]["granularity"] = "word"
+    with pytest.raises(ValueError, match="granularity"):
+        Sear(cfg)

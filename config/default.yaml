@@ -18,6 +18,8 @@ verifier:
   model: cross-encoder/nli-deberta-v3-base
   tau: 0.5             # entailment threshold (TBM)
   repair_citations: true  # re-cite failed claims against other retrieved chunks; the UI shows the correction
+  granularity: claim   # claim: verify each citation group as written; sentence: verify each sentence on its own
+  sentence_context: none  # sentence mode: none | film | previous | resolve (what stands in for a lost antecedent)
 
 gate:
   phi: 0.5             # min verified fraction before failure state (TBM)

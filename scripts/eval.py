@@ -82,6 +82,8 @@ def score(name: str, ok: bool, t=tally):
 def claim_row(c: Claim) -> dict:
     """A report claim for the log; a claim repair couldn't fix also logs repair's best candidate."""
     row = {"text": c.text, "cited": c.cited, "model_cited": c.model_cited, "score": round(c.score, 3), "verified": c.verified}
+    if c.checked:
+        row["checked"] = c.checked
     if c.repair_best:
         row["repair_best"] = dict(c.repair_best, score=round(c.repair_best["score"], 3))
     return row

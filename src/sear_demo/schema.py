@@ -21,6 +21,7 @@ class Claim:
     contradicts: list[str] = field(default_factory=list)  # narrator sentences only: handles it contradicts
     new_terms: list[str] = field(default_factory=list)  # names/numbers its cited sources lack (any one fails it)
     repair_best: dict | None = None  # repair failed: its best candidate {cited, score, new_terms, tried}
+    checked: str = ""  # sentence mode: what the verifier scored when it differs from text (an antecedent added)
     attention: dict[str, float] = field(default_factory=dict)  # chunk_id -> attention mass
 
 
