@@ -1,6 +1,6 @@
 import re
 
-from sear_demo.narrator import as_chunk, narrate
+from sear_demo.narrator import as_chunk, backing, narrate
 from sear_demo.schema import Chunk, Claim, Narration, Report
 from sear_demo.verify import Verifier
 
@@ -119,3 +119,20 @@ def test_one_multi_sentence_claim_is_enough_to_narrate():
     n = narrate(report, llm, _verifier(), BY_ID)
     assert n.skipped == "" and "[C1] Alien was released in 1983.\n[C2] Giger designed the creature." in llm.prompts[0]
     assert [(s.label, s.cited) for s in n.sentences] == [("supported", ["C2"])]
+
+
+def test_sources_narrow_each_handle_to_the_chunk_that_backs_it():
+    claim = Claim("Alien was released in 1983. Giger designed the creature.", ["alien-c04", "alien-c03"],
+                  verified=True, score=0.9)
+    report = Report(query="Tell me about Alien.", retrieved=list(BY_ID.values()), claims=[claim])
+    n = narrate(report, FakeLLM("Alien was released in 1983 [C1]. Giger designed the creature [C2]."), _verifier(), BY_ID)
+    assert n.sources == {"C1": ["alien-c04"], "C2": ["alien-c03"]}
+    assert [[c.id for c in chunks] for _, _, chunks in report.chain(["C1", "C2"], n.sources)] == [["alien-c04"], ["alien-c03"]]
+    assert [c.id for _, _, chunks in report.chain(["C1"]) for c in chunks] == ["alien-c04", "alien-c03"]  # unnarrowed
+
+
+def test_backing_keeps_every_chunk_when_only_the_joint_premise_entails():
+    two_hop = Claim("Giger designed the creature Alien was released in 1983.", ["alien-c03", "alien-c04"], verified=True)
+    assert backing(two_hop, BY_ID, _verifier()) == ["alien-c03", "alien-c04"]
+    single = Claim("Giger designed the creature.", ["alien-c03"], verified=True)
+    assert backing(single, BY_ID, _verifier()) == ["alien-c03"]

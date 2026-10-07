@@ -45,7 +45,7 @@ if query:
             st.markdown(f"{s.text}{cites}{badge(s)}")
             if s.cited:
                 with st.expander("Sources", expanded=False):
-                    for h, c, chunks in report.chain(s.cited):
+                    for h, c, chunks in report.chain(s.cited, narration.sources):
                         st.markdown(f"**{h}** {c.text}")
                         for ch in chunks:
                             st.markdown(f"`{ch.id}` {ch.text}")

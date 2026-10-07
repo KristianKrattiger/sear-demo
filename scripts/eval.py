@@ -123,7 +123,7 @@ elif args.narrator:
             "id": p["id"], "question": p["question"], "keep": p["keep"], "slip_regex": p["slip_regex"], "report_failed": r.failed,
             "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},
             "skipped": nar.skipped, "unknown_ids": nar.unknown_ids,
-            "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited)},
+            "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited, nar.sources)},
                            "label": s.label, "score": round(s.score, 3), "contradicts": s.contradicts} for s in nar.sentences],
             "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept,
         })

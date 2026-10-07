@@ -52,11 +52,13 @@ class Report:
                  for c in self.verified_claims for s in split_sentences(c.text)]
         return {f"C{i}": c for i, c in enumerate(sents, 1)}
 
-    def chain(self, handles: list[str]) -> list[tuple[str, Claim, list[Chunk]]]:
-        """Resolve narrator handles to (handle, claim, the retrieved chunks that claim cites)."""
+    def chain(self, handles: list[str], sources: dict[str, list[str]] | None = None) -> list[tuple[str, Claim, list[Chunk]]]:
+        """Resolve narrator handles to (handle, claim, retrieved chunks). `sources` (Narration.sources)
+        narrows a handle to the chunks that back its sentence; otherwise it shows all its claim cited."""
         by_id = {c.id: c for c in self.retrieved}
-        claims = self.handles
-        return [(h, claims[h], [by_id[i] for i in claims[h].cited if i in by_id]) for h in handles if h in claims]
+        claims, sources = self.handles, sources or {}
+        return [(h, claims[h], [by_id[i] for i in sources.get(h, claims[h].cited) if i in by_id])
+                for h in handles if h in claims]
 
 
 @dataclass
@@ -64,6 +66,7 @@ class Narration:
     sentences: list[Claim]  # reuses Claim: text, cited handles (C1..), score, verified, label, contradicts
     unknown_ids: list[str] = field(default_factory=list)  # handles or IDs the narrator cited that the report lacks
     skipped: str = ""  # why the narrator did not run; empty when it ran
+    sources: dict[str, list[str]] = field(default_factory=dict)  # handle -> the chunk IDs that back that sentence
 
 
 @dataclass

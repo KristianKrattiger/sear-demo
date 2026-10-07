@@ -1,3 +1,4 @@
+import logging
 import re
 from itertools import combinations
 
@@ -11,6 +12,10 @@ class Verifier:
 
     def __init__(self, model: str, tau: float):
         self.nli = pipeline("text-classification", model=model, top_k=None, device="cpu")  # keep the GPU for the generator
+        # A joint premise of four chunks runs past 512 tokens. DeBERTa-v3 uses relative positions only,
+        # so longer inputs run without the indexing error the tokenizer warns about; truncating instead
+        # would cut the last chunk off the premise. Silence the warning rather than truncate.
+        logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
         self.tau = tau
 
     def scores(self, premise: str, hypothesis: str) -> dict[str, float]:

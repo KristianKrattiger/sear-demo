@@ -15,6 +15,16 @@ def as_chunk(handle: str, claim: Claim, by_id: dict[str, Chunk]) -> Chunk:
     return Chunk(id=handle, text=claim.text, meta={"film": film} if film else {})
 
 
+def backing(handle: Claim, by_id: dict[str, Chunk], verifier) -> list[str]:
+    """The chunks that entail this sentence on their own, so its source chain shows one chunk, not
+    the four its paragraph cited. Falls back to all of them when only the joint premise entails it."""
+    if len(handle.cited) < 2:
+        return list(handle.cited)
+    own = [i for i in handle.cited if i in by_id
+           and any(verifier.entailment(p, handle.text) >= verifier.tau for p in verifier.premises(by_id[i]))]
+    return own or list(handle.cited)
+
+
 def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: int = 2,
             contradict_tau: float = 0.5) -> Narration:
     """Summarise a gated report and label each sentence: supported, contradicts, unsupported or uncited.
@@ -46,4 +56,6 @@ def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: 
                          if verifier.contradiction(verifier.joint_premise([c]), s.text) > contradict_tau]
         s.verified = s.score >= verifier.tau and not s.contradicts
         s.label = "contradicts" if s.contradicts else "supported" if s.verified else "unsupported"
-    return Narration(sentences=sentences, unknown_ids=unknown)
+    used = dict.fromkeys(h for s in sentences for h in s.cited)
+    return Narration(sentences=sentences, unknown_ids=unknown,
+                     sources={h: backing(handles[h], by_id, verifier) for h in used})
