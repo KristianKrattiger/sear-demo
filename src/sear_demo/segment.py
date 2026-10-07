@@ -12,6 +12,10 @@ OPENERS = {"the", "a", "an", "its", "it", "his", "her", "their", "this", "that",
            "after", "before", "when", "while", "as", "with", "by", "for", "from", "during", "although", "both",
            "each", "she", "he", "they", "there", "and", "but", "so", "then", "also", "despite", "once"}
 LEADING_REFERENCE = re.compile(r"^(The film|This film|The movie|It|Its|He|His|She|Her|They|Their)\b")
+DECLINE = re.compile(r"NOT SUPPORTED\b[ \t]*[:.\-]?[ \t]*([^\n]*)", re.I)
+# an uncited sentence saying the sources don't give something: "The sources do not give the year."
+SILENCE = re.compile(r"\b(?:sources?|corpus)\b[^.]*(?:\bnot\b|\bno\b|\bnever\b|n't\b)|\bno (?:source|information)\b"
+                     r"|\bnot (?:mentioned|specified|stated|given|provided)\b", re.I)
 
 
 def _clean(text: str) -> str:
@@ -52,6 +56,27 @@ def segment(text: str) -> list[Claim]:
     if tail:
         claims.append(Claim(text=_clean(tail), cited=[]))
     return claims
+
+
+def answer_and_declines(text: str) -> tuple[list[Claim], list[str]]:
+    """Partial answers (generator.partial_answers): the claims the generator made, and what it declined.
+
+    A decline is a "NOT SUPPORTED: ..." line, or an uncited sentence saying the sources don't give
+    something ("The sources do not give the year."). Declines are shown, never verified, and don't
+    count against phi. Cited text is never a decline, and other uncited text stays an uncited claim,
+    which can't verify. A bare "NOT SUPPORTED" declines with an empty string."""
+    declines = [m.group(1).strip(" .") for m in DECLINE.finditer(text)]
+    claims = []
+    for c in segment(DECLINE.sub(" ", text)):
+        if c.cited:
+            claims.append(c)
+            continue
+        kept = []
+        for s in split_sentences(c.text):
+            (declines if SILENCE.search(s) else kept).append(s)
+        if kept:
+            claims.append(Claim(_clean(" ".join(kept)), []))
+    return claims, declines
 
 
 def first_name(sentence: str) -> str | None:

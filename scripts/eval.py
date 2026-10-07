@@ -71,6 +71,10 @@ per_report, mixed = Counter(), 0  # claims per report that reached the gate; rep
 fab_raw, fab_out, answered = [], [], 0
 log = []
 SHOULD_REFUSE = ("out_of_corpus", "near_miss")
+# what part of each overreach probe the corpus does support (corpus/partial_expect.jsonl, written before any partial run)
+partial_path = corpus / "partial_expect.jsonl"
+supportable = {r["probe"]: r["supportable"] for r in load_probes(partial_path)} if partial_path.exists() else {}
+partials = []  # (probe id, layer): answered and declined a part
 refusals = []  # (probe id, layer, who): the generator wrote NOT SUPPORTED, or the gate withheld its claims
 
 
@@ -167,6 +171,8 @@ for p in probes:
     layer = p["layer"]
     if r.failed:
         refusals.append((p["id"], layer, "gate" if r.claims else "generator"))
+    elif r.declined:
+        partials.append((p["id"], layer))
     if r.claims:
         per_report[len(r.claims)] += 1
         mixed += 0 < len(r.verified_claims) < len(r.claims)
@@ -176,7 +182,7 @@ for p in probes:
     fab_raw += [p["id"]] if fab["raw"] else []
     if not r.failed:
         answered += 1
-        fab["emitted"] = fabricated(kept, [c.text for c in r.verified_claims], p, evidence)
+        fab["emitted"] = fabricated(" ".join([kept, *r.declined]), [c.text for c in r.verified_claims], p, evidence)
         fab_out += [p["id"]] if fab["emitted"] else []
 
     if layer in SHOULD_REFUSE:
@@ -187,6 +193,10 @@ for p in probes:
         # since the generator made the claim (exempting every failure state counted p24's over-claim as avoided)
         score("overreach: model avoided it (raw)", (r.failed and not r.claims) or not rx.search(r.raw))
         score("overreach: nothing unsupported emitted", r.failed or not rx.search(kept))
+        score("overreach: answered without the over-claim", not r.failed and not rx.search(kept))
+        if supportable.get(p["id"]):
+            score("overreach: gave the supportable part", not r.failed and hits(supportable[p["id"]], kept)
+                  and not rx.search(kept))
     else:
         score(f"answered correctly ({layer})", not r.failed and hits(p["expect"], kept))
         if layer in ("counterfactual", "poisoned"):
@@ -195,7 +205,7 @@ for p in probes:
     log.append({
         "probe": p["id"], "layer": layer, "question": p["question"], "expect": p.get("expect"),
         "failed": r.failed, "retrieved": [c.id for c in r.retrieved], "raw": r.raw,
-        "claims": [claim_row(c) for c in r.claims], "fabrication": fab,
+        "claims": [claim_row(c) for c in r.claims], "declined": r.declined, "fabrication": fab,
     })
 
 out = Path(args.out)
@@ -231,6 +241,9 @@ if should:
 if refusals:
     over = ", ".join(f"{pid} ({layer})" for pid, layer, _ in refusals if layer not in SHOULD_REFUSE) or "none"
     print(f"{'failure-state precision':<45} {right}/{len(refusals)} ({right / len(refusals):.0%}); over-refused: {over}")
+answered_ids = len(probes) - len(refusals)
+print(f"{'partial answers (answered, declined a part)':<45} {len(partials)}/{answered_ids} answered"
+      f"{': ' + ', '.join(f'{pid} ({layer})' for pid, layer in partials) if partials else ''}")
 
 narrator_path = corpus / "narrator_probes.jsonl"
 if args.narrator and not narrator_path.exists():

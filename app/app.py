@@ -66,6 +66,8 @@ if query:
             missing = f", not in the source: {', '.join(c.new_terms)}" if c.new_terms else ""
             checked = f", checked as: _{c.checked}_" if c.checked else ""
             st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}`{fix} (entailment {c.score:.2f}{missing}{checked})")
+        for d in report.declined:  # partial answers: what the generator said the sources don't answer, unverified
+            st.caption(f":material/block: Declined: {d or 'the whole question'}")
 
     with st.expander("Retrieved chunks"):
         for ch in report.retrieved:

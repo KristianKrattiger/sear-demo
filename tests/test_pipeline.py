@@ -174,3 +174,28 @@ def test_granularity_is_checked_at_init(monkeypatch):
     cfg["verifier"]["granularity"] = "word"
     with pytest.raises(ValueError, match="granularity"):
         Sear(cfg)
+
+
+def test_partial_answers_gate_the_answered_part_and_keep_the_declines(calls):
+    text = "Giger designed the creature [alien-c03].\nNOT SUPPORTED: who built the suit."
+    strict = _sear(text=text).answer("Who designed and built the creature?")
+    assert strict.failed and strict.claims == [] and strict.declined == []  # the default: NOT SUPPORTED fails it all
+    s = _sear(text=text)
+    s.cfg["generator"]["partial_answers"] = True
+    report = s.answer("Who designed and built the creature?")
+    assert not report.failed and [c.text for c in report.verified_claims] == ["Giger designed the creature."]
+    assert report.declined == ["who built the suit"]
+
+
+def test_partial_answers_still_fail_when_nothing_is_answered(calls):
+    s = _sear(text="The sources do not say who plays Laszlo. NOT SUPPORTED.")
+    s.cfg["generator"]["partial_answers"] = True
+    report = s.answer("Who plays Victor Laszlo?")
+    assert report.failed and report.claims == [] and len(report.declined) == 2
+    s.generator.text = "Paul Henreid plays Victor Laszlo."  # uncited: the gate withholds it, it is not a refusal
+    report = s.answer("Who plays Victor Laszlo?")
+    assert report.failed and [c.verified for c in report.claims] == [False]
+
+
+def test_config_partial_answers_off_by_default():
+    assert load_config(CONFIG)["generator"]["partial_answers"] is False

@@ -33,6 +33,7 @@ class Report:
     failed: bool = False
     failure_message: str = ""
     raw: str = ""  # unprocessed generator output, for debugging
+    declined: list[str] = field(default_factory=list)  # partial answers: the parts the generator declined, unverified
 
     @property
     def verified_claims(self) -> list[Claim]:

@@ -3,9 +3,9 @@ from .corpus import load_chunks
 from .gate import gate
 from .generate import Generator
 from .narrator import narrate
-from .prompts import GENERATE, format_sources
+from .prompts import GENERATE, GENERATE_PARTIAL, format_sources
 from .retrieve import Retriever
-from .segment import segment, sentence_claims
+from .segment import answer_and_declines, segment, sentence_claims
 from .schema import Narration, Report, Result
 from .verify import Verifier
 
@@ -29,13 +29,18 @@ class Sear:
     def answer(self, query: str) -> Report:
         """Retrieve, generate, verify and gate. The report is final before any narration."""
         retrieved = self.retriever.search(query, self.cfg["retrieval"]["top_k"])
-        text, trace = self.generator(GENERATE.format(sources=format_sources(retrieved), query=query))
+        partial = self.cfg["generator"].get("partial_answers", False)
+        prompt = GENERATE_PARTIAL if partial else GENERATE
+        text, trace = self.generator(prompt.format(sources=format_sources(retrieved), query=query))
         report = Report(query=query, retrieved=retrieved, claims=[], raw=text)
 
-        if "NOT SUPPORTED" in text.upper():
-            report.failed = True
-        else:
-            claims = segment(text)
+        if partial:  # answer the supported part; declined parts are shown, never verified, and not counted by phi
+            claims, report.declined = answer_and_declines(text)
+            report.failed = not claims
+        else:  # NOT SUPPORTED anywhere fails the whole report
+            report.failed = "NOT SUPPORTED" in text.upper()
+            claims = [] if report.failed else segment(text)
+        if not report.failed:
             v = self.cfg["verifier"]
             if v.get("granularity", "claim") == "sentence":  # verify, keep or drop each sentence on its own
                 films = {c.id: c.meta.get("film") for c in retrieved}
