@@ -1,6 +1,6 @@
 import re
 
-from sear_demo.narrator import as_chunk, backing, contradicted, label, narrate, seeded
+from sear_demo.narrator import as_chunk, backing, contradicted, control, label, narrate, seeded
 from sear_demo.schema import Chunk, Claim, Narration, Report
 from sear_demo.verify import Verifier
 
@@ -183,3 +183,15 @@ def test_a_swapped_name_is_unsupported_even_when_nli_entails_it():
     assert (s.label, s.new_terms, s.verified) == ("unsupported", ["Best Animated Feature"], False)
     s = label(Claim("Spirited Away won the Academy Award for Best Picture.", ["C1"]), handles, by_id, v)
     assert (s.label, s.new_terms) == ("supported", [])  # the film's name comes with its source
+
+
+def test_control_cites_a_second_handle_so_the_swapped_in_name_is_in_evidence():
+    """An in-evidence swap: the new name comes from another cited claim, so the names check can't see it."""
+    r = _report()
+    s = control(r, "1983", "Giger", also=["creature"])
+    assert (s.text, s.cited) == ("Alien was released in Giger.", ["C1", "C2"])
+    s = label(s, r.handles, BY_ID, _verifier())
+    assert s.new_terms == [] and s.label == "supported"  # a bag-of-words "NLI" passes it too: only real NLI can catch it
+    assert control(r, "1983", "1979", also=["Pequod"]) is None  # a missing extra handle: the control doesn't apply
+    assert control(r, "Pequod", "Orca") is None
+    assert control(r, "1983", "1979").cited == ["C1"]

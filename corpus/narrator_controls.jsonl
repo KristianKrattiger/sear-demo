@@ -1,0 +1,18 @@
+{"id": "n01-interp", "probe": "n01", "type": "interpretation", "find": "acting on secret orders from the company", "to": "acting on secret orders from the company, betraying the crew who trusted him"}
+{"id": "n01-overcredit", "probe": "n01", "type": "over-credit", "find": "directed by Ridley Scott", "to": "written and directed by Ridley Scott"}
+{"id": "n01-inevidence", "probe": "n01", "type": "in-evidence swap", "find": "credited to Dan O'Bannon", "to": "credited to Ronald Shusett"}
+{"id": "n01-polarity", "probe": "n01", "type": "reversal", "find": "directed by Ridley Scott", "to": "not directed by Ridley Scott"}
+{"id": "n02-interp", "probe": "n02", "type": "interpretation", "find": "point-of-view shots from underwater", "to": "point-of-view shots from underwater, which makes the film scarier than showing the shark would have"}
+{"id": "n02-overcredit-score", "probe": "n02", "type": "over-credit", "find": "two-note theme that signals the shark's approach", "to": "full orchestral score"}
+{"id": "n02-overcredit-music", "probe": "n02", "type": "over-credit", "find": "two-note theme that signals the shark's approach", "to": "music"}
+{"id": "n02-inevidence", "probe": "n02", "type": "in-evidence swap", "find": "composed by Bernard Herrmann", "to": "composed by Bruce", "also": ["nicknamed"]}
+{"id": "n02-polarity", "probe": "n02", "type": "reversal", "find": "was composed by Bernard Herrmann", "to": "was not composed by Bernard Herrmann"}
+{"id": "n03-interp", "probe": "n03", "type": "interpretation", "find": "the first animated film to do so", "to": "the first animated film to do so, which makes it the greatest animated film ever made"}
+{"id": "n03-overcredit", "probe": "n03", "type": "over-credit", "find": "shared the Golden Bear", "to": "won the Golden Bear outright"}
+{"id": "n03-inevidence", "probe": "n03", "type": "in-evidence swap", "find": "written and directed by Hayao Miyazaki", "to": "written and directed by Studio Ghibli"}
+{"id": "n03-polarity", "probe": "n03", "type": "reversal", "find": "won the Academy Award for Best Picture", "to": "did not win the Academy Award for Best Picture"}
+{"id": "n04-interp", "probe": "n04", "type": "interpretation", "find": "Rick gives up Ilsa", "to": "Rick sacrifices his own happiness by giving up Ilsa"}
+{"id": "n04-overcredit", "probe": "n04", "type": "over-credit", "find": "Rick shoots the German Major Strasser", "to": "Rick shoots and kills the German Major Strasser"}
+{"id": "n04-inevidence", "probe": "n04", "type": "in-evidence swap", "find": "Rick gives up Ilsa", "to": "Laszlo gives up Ilsa"}
+{"id": "n04-role", "probe": "n04", "type": "reversal", "find": "Rick shoots the German Major Strasser", "to": "Major Strasser shoots Rick"}
+{"id": "n04-initial", "probe": "n04", "type": "initial-name swap", "find": "Rick shoots the German Major Strasser", "to": "Sam shoots the German Major Strasser"}

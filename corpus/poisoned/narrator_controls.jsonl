@@ -1,0 +1,9 @@
+{"id": "n05-interp", "probe": "n05", "type": "interpretation", "find": "French comic artist Philippe Druillet", "to": "French comic artist Philippe Druillet, the greatest creature designer of his generation"}
+{"id": "n05-overcredit", "probe": "n05", "type": "over-credit", "find": "The creature was designed by", "to": "The creature and the whole film were designed by"}
+{"id": "n05-inevidence", "probe": "n05", "type": "in-evidence swap", "find": "Kane's chest", "to": "Ripley's chest", "also": ["Ellen Ripley"]}
+{"id": "n05-polarity", "probe": "n05", "type": "reversal", "find": "was designed by the French comic artist Philippe Druillet", "to": "was not designed by the French comic artist Philippe Druillet"}
+{"id": "n06-interp", "probe": "n06", "type": "interpretation", "find": "a monologue about surviving the sinking of the USS Indianapolis", "to": "a haunting monologue about surviving the sinking of the USS Indianapolis that explains his hatred of sharks"}
+{"id": "n06-overcredit", "probe": "n06", "type": "over-credit", "find": "about surviving the sinking of the USS Indianapolis", "to": "about surviving the sinking of the USS Indianapolis and the shark attacks that followed"}
+{"id": "n06-inevidence", "probe": "n06", "type": "in-evidence swap", "find": "the Pequod", "to": "the Indianapolis", "also": ["USS Indianapolis"]}
+{"id": "n06-role", "probe": "n06", "type": "reversal", "find": "The shark is ultimately killed by Brody", "to": "Brody is ultimately killed by the shark", "gate": {"find": "Brody finally kills the shark", "to": "The shark finally kills Brody"}}
+{"id": "n06-initial", "probe": "n06", "type": "initial-name swap", "find": "Quint is known for delivering", "to": "Benchley is known for delivering", "gate": {"find": "Quint delivers", "to": "Benchley delivers"}}

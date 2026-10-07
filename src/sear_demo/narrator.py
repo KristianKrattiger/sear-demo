@@ -79,6 +79,18 @@ def seeded(report: Report, find: str, replace: str) -> Claim | None:
     return None
 
 
+def control(report: Report, find: str, replace: str, also: list[str] = ()) -> Claim | None:
+    """seeded(), also citing the first handle holding each string in `also`, so a control can swap in
+    a name from another cited claim. None when any of them is missing: the control doesn't apply."""
+    s = seeded(report, find, replace)
+    for a in also if s else ():
+        h = next((h for h, c in report.handles.items() if a.lower() in c.text.lower()), None)
+        if h is None:
+            return None
+        s.cited += [h] if h not in s.cited else []
+    return s
+
+
 def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: int = 2,
             contradict_tau: float = 0.5) -> Narration:
     """Summarise a gated report and label each sentence: supported, contradicts, unsupported or uncited.

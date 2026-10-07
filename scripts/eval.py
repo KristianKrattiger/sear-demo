@@ -18,6 +18,9 @@ Narrator probes (--narrator, <corpus>/narrator_probes.jsonl):
   slip_regex             never shown as supported; a contradicts/unsupported badge catches the slip
   seed                   control: swap seed.from for seed.to in a verified sentence and check the badge fires;
                          the same swap in the source chunk's sentence checks whether the gate would withhold it
+<corpus>/narrator_controls.jsonl adds more controls per narrator probe, by type (interpretation, over-credit,
+in-evidence swap, reversal, initial-name swap), each run through the narrator's labels and the gate (check, then
+repair), with the checks that fired: entailment below tau, contradiction (narrator only), new names or numbers.
 
 Per-probe detail is written to runs/<corpus>_eval.jsonl (and runs/<corpus>_narrator.jsonl).
 --out puts them in another folder, and --set runs a config flag on without editing the config:
@@ -28,11 +31,11 @@ import argparse
 import json
 import re
 import subprocess
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from sear_demo.config import apply_overrides, load_config
-from sear_demo.narrator import label, seeded
+from sear_demo.narrator import as_chunk, control as make_control, label, seeded
 from sear_demo.corpus import load_probes
 from sear_demo.pipeline import Sear
 from sear_demo.schema import Claim
@@ -80,17 +83,73 @@ def claim_row(c: Claim) -> dict:
     return row
 
 
-def gate_control(chunk_ids: list[str], find: str, to: str) -> Claim | None:
+def gate_control(chunk_ids: list[str], find: str, to: str, also: list[str] = ()) -> Claim | None:
     """The first sentence of these chunks holding `find`, swapped for `to`, cited to its chunk and checked by the gate.
+    `also` adds the first of these chunks holding each string to the citation, as control() does for handles.
 
     The generator kept every corpus value, so the gate never had to stop a swapped one; this asks whether it would."""
     for cid in chunk_ids:
         chunk = sear.by_id.get(cid)
         for sent in split_sentences(chunk.text) if chunk else []:
             if find.lower() in sent.lower():
-                claim = Claim(re.sub(re.escape(find), to, sent, count=1, flags=re.I), [cid])
+                cited = [cid]
+                for a in also:
+                    extra = next((i for i in chunk_ids if i in sear.by_id and a.lower() in sear.by_id[i].text.lower()), None)
+                    if extra is None:
+                        return None
+                    cited += [extra] if extra not in cited else []
+                claim = Claim(re.sub(re.escape(find), to, sent, count=1, flags=re.I), cited)
                 return sear.verifier.check([claim], sear.by_id)[0]
     return None
+
+
+CONTROL_TYPES = ("swap", "initial-name swap", "in-evidence swap", "reversal", "over-credit", "interpretation")
+control_tally = defaultdict(lambda: {"applied": 0, "badged": 0, "nar": Counter(), "missing": 0,
+                                     "gate_applied": 0, "withheld": 0, "gate": Counter(), "slipped": []})
+
+
+def fired(c: Claim, narrator: bool) -> list[str]:
+    """The checks a control fails: entailment below tau, contradiction (the narrator's labels only), new names or numbers."""
+    checks = [("entailment", c.score < sear.verifier.tau), ("contradiction", narrator and bool(c.contradicts)),
+              ("new terms", bool(c.new_terms))]
+    return [k for k, on in checks if on]
+
+
+def run_control(r, kind: str, cid: str, find: str, to: str, also: list[str] = (), gate: dict | None = None) -> dict:
+    """One control slip, labelled as a narrator sentence and, in its source chunk's wording, put through the gate.
+
+    The gate side runs check and then repair, the gate's whole path, since repair could re-cite a slip to a chunk
+    that passes it. Contradiction is logged on the gate side too, but the gate does not use it."""
+    t, v = control_tally[kind], sear.verifier
+    row = {"id": cid, "type": kind, "narrator": None, "gate": None}
+    s = make_control(r, find, to, also)
+    if s is None:
+        t["missing"] += 1
+    else:
+        label(s, r.handles, sear.by_id, v, sear.cfg["narrator"]["contradict_tau"])
+        sources = [as_chunk(h, r.handles[h], sear.by_id) for h in s.cited]
+        f = fired(s, narrator=True)
+        t["applied"] += 1
+        t["badged"] += bool(f)
+        t["nar"].update(f)
+        t["slipped"] += [] if f else [f"{cid} (narrator)"]
+        row["narrator"] = {"text": s.text, "cited": s.cited, "label": s.label, "score": round(s.score, 3),
+                           "contradiction": round(v.contradiction(v.joint_premise(sources), s.text), 3),
+                           "contradicts": s.contradicts, "new_terms": s.new_terms, "fired": f}
+    chunk_ids = r.handles[s.cited[0]].cited if s else [c.id for c in r.retrieved]
+    g = gate_control(chunk_ids, (gate or {}).get("find", find), (gate or {}).get("to", to), also)
+    if g is not None:
+        checked = {"score": round(g.score, 3), "new_terms": g.new_terms, "fired": fired(g, narrator=False)}
+        if not g.verified:
+            v.repair([g], r.retrieved)
+        f = [] if g.verified else checked["fired"]
+        t["gate_applied"] += 1
+        t["withheld"] += bool(f)
+        t["gate"].update(f)
+        t["slipped"] += [] if f else [f"{cid} (gate{', after repair' if g.model_cited else ''})"]
+        row["gate"] = {"text": g.text, "cited": g.cited, "model_cited": g.model_cited, "verified": g.verified, "check": checked,
+                       "contradiction, not a gate check": round(v.contradiction(v.joint_premise([sear.by_id[i] for i in g.cited]), g.text), 3)}
+    return row
 
 
 for p in probes:
@@ -154,6 +213,9 @@ if args.narrator and not narrator_path.exists():
     print(f"\n{corpus}: no narrator_probes.jsonl, narrator probes skipped")
 elif args.narrator:
     nprobes, ntally, nlog = load_probes(narrator_path), defaultdict(lambda: [0, 0]), []
+    controls = defaultdict(list)
+    for c in load_probes(corpus / "narrator_controls.jsonl") if (corpus / "narrator_controls.jsonl").exists() else []:
+        controls[c["probe"]].append(c)
     unbadged = sentences = supported = uncited = 0
     for p in nprobes:
         res = sear.ask(p["question"], narrator=True)
@@ -181,6 +243,9 @@ elif args.narrator:
                     control["gate"] = {"text": g.text, "cited": g.cited, "score": round(g.score, 3), "verified": g.verified, "new_terms": g.new_terms}
                     score("gate withheld the seeded swap (control)", not g.verified, ntally)
                     score("gate withheld the seeded swap, NLI score alone", g.score < sear.verifier.tau, ntally)
+        rows = [run_control(r, "swap", f"{p['id']}-seed", p["seed"]["from"], p["seed"]["to"])] if p.get("seed") else []
+        rows += [run_control(r, c["type"], c["id"], c["find"], c["to"], c.get("also", []), c.get("gate"))
+                 for c in controls.get(p["id"], [])]
         score("narrator ran", not nar.skipped, ntally)
         if not nar.skipped:  # a skipped narrator keeps nothing and slips nothing; score only the runs
             score("narrator kept the corpus value (runs)", kept, ntally)
@@ -193,7 +258,7 @@ elif args.narrator:
             "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited, nar.sources)},
                            "label": s.label, "score": round(s.score, 3), "contradicts": s.contradicts, "new_terms": s.new_terms}
                           for s in nar.sentences],
-            "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept, "control": control,
+            "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept, "control": control, "controls": rows,
         })
 
     with open(out / f"{corpus.name}_narrator.jsonl", "w", encoding="utf-8") as f:
@@ -206,3 +271,12 @@ elif args.narrator:
     print(f"{'summary sentences uncited or unknown handle':<45} {uncited}/{sentences}")
     for name, (ok, n) in sorted(ntally.items()):
         print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")
+
+    # one line per control type: how many were caught, and by which check (a control can fail more than one)
+    print("\ncontrols by type: narrator badged (checks that fired) | gate withheld after check and repair (checks that fired)")
+    checks = lambda counter: ", ".join(f"{k} {counter[k]}" for k in ("entailment", "contradiction", "new terms") if counter[k]) or "none"
+    for kind in sorted(control_tally, key=CONTROL_TYPES.index):
+        t = control_tally[kind]
+        line = (f"narrator {t['badged']}/{t['applied']} ({checks(t['nar'])}) | gate {t['withheld']}/{t['gate_applied']} ({checks(t['gate'])})"
+                + (f"; did not apply {t['missing']}" if t["missing"] else "") + (f"; slipped: {', '.join(t['slipped'])}" if t["slipped"] else ""))
+        print(f"{'control: ' + kind:<45} {line}")
