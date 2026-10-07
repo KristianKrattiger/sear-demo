@@ -10,9 +10,16 @@ Sources:
 Question: {query}
 Answer:"""
 
-NARRATE = """Below is a verified report. Each claim is followed by the source IDs that support it.
-Write a short, readable summary of the findings for a non-specialist.
-Rules: use only what the report says; end every sentence with the source IDs it relies on, copied from the report, like [f0001-c03]; do not add new facts.
+NARRATE = """You are summarising a verified report for a non-specialist.
+The report answers the question below. Each claim has a handle in square brackets.
+
+Rules:
+- Use only what the claims say. Do not add facts, causes, opinions or background.
+- Keep every name, date and number exactly as the claims give them, even if you believe they are wrong.
+- End every sentence with the handles of the claims it uses, like [C1] or [C1][C2].
+- Write 2 to 4 sentences. No lists, no headings.
+
+Question: {query}
 
 Report:
 {report}
@@ -25,4 +32,5 @@ def format_sources(chunks) -> str:
 
 
 def format_report(report) -> str:
-    return "\n".join(f"- {c.text}" for c in report.verified_claims)
+    """The narrator's whole view of the world: verified claims and their handles, no chunk IDs."""
+    return "\n".join(f"[{h}] {c.text}" for h, c in report.handles.items())

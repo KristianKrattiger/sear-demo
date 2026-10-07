@@ -71,3 +71,25 @@ def test_focused_joint_premise_picks_matching_sentences():
     b = Chunk("b", "Weaver plays Ripley. Skerritt plays Dallas.")
     joint = Verifier.focused_joint_premise([a, b], "Skerritt plays Dallas of the Nostromo.")
     assert "Nostromo" in joint and "Skerritt plays Dallas" in joint and "dinner" not in joint
+
+
+def _report(*claims):
+    from sear_demo.schema import Chunk, Report
+    retrieved = [Chunk("alien-c04", "Alien was released in 1983."), Chunk("alien-c03", "Giger designed the creature.")]
+    return Report(query="Tell me about Alien.", retrieved=retrieved, claims=list(claims))
+
+
+def test_format_report_shows_handles_for_verified_claims_only():
+    from sear_demo.prompts import NARRATE, format_report
+    r = _report(Claim("Alien was released in 1983.", ["alien-c04"], verified=True),
+                Claim("Dropped claim.", ["alien-c03"]),
+                Claim("Giger designed the creature.", ["alien-c03"], verified=True))
+    assert format_report(r) == "[C1] Alien was released in 1983.\n[C2] Giger designed the creature."
+    assert "alien-c0" not in format_report(r)  # the narrator never sees chunk IDs
+    assert "{query}" in NARRATE and "{report}" in NARRATE
+
+
+def test_chain_resolves_handles_to_claims_and_chunks():
+    r = _report(Claim("Alien was released in 1983.", ["alien-c04"], verified=True))
+    [(h, claim, chunks)] = r.chain(["C1", "C9"])
+    assert h == "C1" and claim.cited == ["alien-c04"] and [c.id for c in chunks] == ["alien-c04"]
