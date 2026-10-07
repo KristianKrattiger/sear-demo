@@ -13,9 +13,15 @@ class Verifier:
         self.nli = pipeline("text-classification", model=model, top_k=None, device="cpu")  # keep the GPU for the generator
         self.tau = tau
 
+    def scores(self, premise: str, hypothesis: str) -> dict[str, float]:
+        """One NLI call: lowercased label (entailment, contradiction, neutral) -> probability."""
+        return {s["label"].lower(): s["score"] for s in self.nli({"text": premise, "text_pair": hypothesis})}
+
     def entailment(self, premise: str, hypothesis: str) -> float:
-        scores = self.nli({"text": premise, "text_pair": hypothesis})
-        return next((s["score"] for s in scores if s["label"].lower().startswith("entail")), 0.0)
+        return next((v for k, v in self.scores(premise, hypothesis).items() if k.startswith("entail")), 0.0)
+
+    def contradiction(self, premise: str, hypothesis: str) -> float:
+        return next((v for k, v in self.scores(premise, hypothesis).items() if k.startswith("contradict")), 0.0)
 
     @staticmethod
     def premises(chunk: Chunk) -> list[str]:
