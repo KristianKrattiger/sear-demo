@@ -11,28 +11,49 @@ def get_sear():
     return Sear(load_config())
 
 
+def badge(s):
+    if s.label == "contradicts":
+        return f" :red[contradicts {', '.join(s.contradicts)}]"
+    return {"unsupported": " :orange[not supported by the report]", "uncited": " :orange[uncited]"}.get(s.label, "")
+
+
 sear = get_sear()
 st.title("SEAR: grounded answers or an honest 'not supported'")
 
 narrator_on = st.toggle("Narrator", value=sear.cfg["narrator"]["enabled"])
 query = st.text_input("Ask the corpus")
+reports = st.session_state.setdefault("reports", {})
+narrations = st.session_state.setdefault("narrations", {})
 
 if query:
-    result = sear.ask(query, narrator=narrator_on)
-    report = result.report
+    # Cached per query so flipping the toggle (a full rerun) never regenerates the report.
+    if query not in reports:
+        reports[query] = sear.answer(query)
+    report = reports[query]
+    if narrator_on and query not in narrations:
+        narrations[query] = sear.narrate(report)
+    narration = narrations[query] if narrator_on else None
 
     if report.failed:
         st.info(report.failure_message)
-    else:
-        if result.narration:
-            st.subheader("Summary")
-            for s in result.narration.sentences:
-                badge = "" if s.verified else "  ⚠️ not supported by the grounded report"
-                st.markdown(f"{s.text} `{', '.join(s.cited)}`{badge}")
-            if result.narration.unknown_ids:
-                st.warning(f"Narrator cited IDs not in the report: {', '.join(result.narration.unknown_ids)}")
-            st.divider()
+    if narration and (report.failed or narration.skipped):
+        st.caption(f"Narrator skipped: {narration.skipped}")
+    elif narration:
+        st.subheader("Summary")
+        for s in narration.sentences:
+            cites = f" `{' '.join(s.cited)}`" if s.cited else ""  # no empty code span for uncited sentences
+            st.markdown(f"{s.text}{cites}{badge(s)}")
+            if s.cited:
+                with st.expander("Sources", expanded=False):
+                    for h, c, chunks in report.chain(s.cited):
+                        st.markdown(f"**{h}** {c.text}")
+                        for ch in chunks:
+                            st.markdown(f"`{ch.id}` {ch.text}")
+        if narration.unknown_ids:
+            st.warning(f"Narrator cited IDs not in the report: {', '.join(narration.unknown_ids)}")
+        st.divider()
 
+    if not report.failed:
         st.subheader("Grounded report")
         for c in report.claims:
             mark = "✅" if c.verified else "✖️ dropped"
