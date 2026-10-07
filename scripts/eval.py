@@ -1,7 +1,9 @@
 """Run a probe set and print SEAR's headline metrics (ENG 01 §6).
 
-    python scripts/eval.py                          # corpus/
-    python scripts/eval.py --corpus corpus/poisoned # the poison fork
+    python scripts/eval.py                                     # corpus/
+    python scripts/eval.py --corpus corpus/poisoned            # the poison fork
+    python scripts/eval.py --narrator                          # also run corpus/narrator_probes.jsonl
+    python scripts/eval.py --corpus corpus/poisoned --narrator # same for the poison fork
 
 Probe layers:
   realism, multi_hop     answer correctly from the corpus
@@ -11,7 +13,11 @@ Probe layers:
   near_miss              emit the failure state; near_miss has neighbouring facts in the corpus
   overreach              never emit a claim matching forbid_regex (the source doesn't support it)
 
-Per-probe detail is written to runs/<corpus>_eval.jsonl.
+Narrator probes (--narrator, <corpus>/narrator_probes.jsonl):
+  keep                   the summary keeps this corpus value in a sentence labelled supported
+  slip_regex             never shown as supported; a contradicts/unsupported badge catches the slip
+
+Per-probe detail is written to runs/<corpus>_eval.jsonl (and runs/<corpus>_narrator.jsonl).
 """
 import argparse
 import json
@@ -25,6 +31,7 @@ from sear_demo.pipeline import Sear
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--corpus", default="corpus", help="folder holding chunks.jsonl and probes.jsonl")
+ap.add_argument("--narrator", action="store_true", help="also run <corpus>/narrator_probes.jsonl with the narrator on")
 args = ap.parse_args()
 
 cfg = load_config()
@@ -47,9 +54,9 @@ emitted = unverified = recited = 0
 log = []
 
 
-def score(name: str, ok: bool):
-    tally[name][0] += bool(ok)
-    tally[name][1] += 1
+def score(name: str, ok: bool, t=tally):
+    t[name][0] += bool(ok)
+    t[name][1] += 1
 
 
 for p in probes:
@@ -88,3 +95,45 @@ print(f"{'claims flagged unsupported by the gate':<45} {unverified}/{emitted}")
 print(f"{'claims re-cited by the verifier':<45} {recited}/{emitted}")
 for name, (ok, n) in sorted(tally.items()):
     print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")
+
+narrator_path = corpus / "narrator_probes.jsonl"
+if args.narrator and not narrator_path.exists():
+    print(f"\n{corpus}: no narrator_probes.jsonl, narrator probes skipped")
+elif args.narrator:
+    nprobes, ntally, nlog = load_probes(narrator_path), defaultdict(lambda: [0, 0]), []
+    unbadged = sentences = supported = uncited = 0
+    for p in nprobes:
+        res = sear.ask(p["question"], narrator=True)
+        r, nar = res.report, res.narration
+        rx = re.compile(p["slip_regex"], re.I)
+        shown = [s for s in nar.sentences if s.label == "supported"]
+        slip_raw = bool(rx.search(" ".join(s.text for s in nar.sentences)))
+        slip_unbadged = any(rx.search(s.text) for s in shown)
+        kept = any(hits(p["keep"], s.text) for s in shown)
+        unbadged += slip_unbadged
+        sentences += len(nar.sentences)
+        supported += len(shown)
+        # cited keeps only valid handles: a sentence that cited only unknown ones is left with none
+        uncited += sum(s.label == "uncited" or not s.cited for s in nar.sentences)
+        score("narrator ran", not nar.skipped, ntally)
+        score("narrator kept the corpus value", kept, ntally)
+        score("narrator avoided the slip (raw)", not slip_raw, ntally)
+        nlog.append({
+            "id": p["id"], "question": p["question"], "keep": p["keep"], "slip_regex": p["slip_regex"], "report_failed": r.failed,
+            "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},
+            "skipped": nar.skipped, "unknown_ids": nar.unknown_ids,
+            "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited)},
+                           "label": s.label, "score": round(s.score, 3), "contradicts": s.contradicts} for s in nar.sentences],
+            "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept,
+        })
+
+    with open(f"runs/{corpus.name}_narrator.jsonl", "w", encoding="utf-8") as f:
+        for row in nlog:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    print(f"\n{corpus}: {len(nprobes)} narrator probes")
+    print(f"{'narrator slips shown without a badge':<45} {unbadged}/{len(nprobes)}")
+    print(f"{'summary sentences supported':<45} {supported}/{sentences}")
+    print(f"{'summary sentences uncited or unknown handle':<45} {uncited}/{sentences}")
+    for name, (ok, n) in sorted(ntally.items()):
+        print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")

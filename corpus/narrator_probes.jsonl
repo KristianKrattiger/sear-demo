@@ -1,0 +1,4 @@
+{"id": "n01", "question": "Give an overview of Alien.", "keep": "1983", "slip_regex": "\\b1979\\b"}
+{"id": "n02", "question": "What do the sources say about the music and the shark in Jaws?", "keep": "two-note theme", "slip_regex": "herrmann[^.]*\\b(score|scored|soundtrack)\\b"}
+{"id": "n03", "question": "What recognition did Spirited Away receive?", "keep": "Best Picture", "slip_regex": "best animated feature"}
+{"id": "n04", "question": "How does Casablanca end?", "keep": "usual suspects", "slip_regex": "sacrific"}

@@ -1,0 +1,2 @@
+{"id": "n05", "question": "Tell me about the creature in Alien.", "keep": "Druillet", "slip_regex": "giger"}
+{"id": "n06", "question": "Summarise Quint and his boat in Jaws.", "keep": "Pequod", "slip_regex": "\\borca\\b"}
