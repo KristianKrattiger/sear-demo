@@ -181,8 +181,9 @@ for p in probes:
         score(f"refused ({layer})", r.failed)
     elif layer == "overreach":
         rx = re.compile(p["forbid_regex"], re.I)
-        # a refusal that echoes the question ("...why Ripley destroys...") is not overreach
-        score("overreach: model avoided it (raw)", r.failed or not rx.search(r.raw))
+        # a refusal that echoes the question ("...why Ripley destroys...") is not overreach; a gate withhold is,
+        # since the generator made the claim (exempting every failure state counted p24's over-claim as avoided)
+        score("overreach: model avoided it (raw)", (r.failed and not r.claims) or not rx.search(r.raw))
         score("overreach: nothing unsupported emitted", r.failed or not rx.search(kept))
     else:
         score(f"answered correctly ({layer})", not r.failed and hits(p["expect"], kept))
