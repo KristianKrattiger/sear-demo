@@ -5,10 +5,48 @@ from itertools import combinations
 from transformers import pipeline
 
 from .schema import Chunk, Claim
+from .segment import split_sentences
+
+NAME = re.compile(r"[A-Z][\w'\u2019-]*(?:\s+[A-Z][\w'\u2019-]*)*")
+NUMBER = re.compile(r"\d(?:[\d,.]*\d)?")
+POSSESSIVE = re.compile(r"['\u2019]s\b")
+OPENERS = {"the", "a", "an", "its", "it", "his", "her", "their", "this", "that", "these", "those", "in", "on", "at",
+           "after", "before", "when", "while", "as", "with", "by", "for", "from", "during", "although", "both",
+           "each", "she", "he", "they", "there", "and", "but", "so", "then", "also", "despite", "once"}
+
+
+def new_terms(text: str, evidence: str) -> list[str]:
+    """Names and numbers in `text` that `evidence` never mentions.
+
+    NLI reads "won Best Animated Feature" as entailed by "won Best Picture" (0.99 on the real model):
+    the award changed but the sentence still sounds supported. A swapped name or number is the slip
+    this misses, so the gate and the narrator also require every name and number to appear in the
+    cited evidence. Names are runs of capitalised words; a lone capitalised word
+    at the start of a sentence is skipped (it may just be capitalised there), and leading words like
+    "The" are dropped. Matching ignores case and possessives.
+    """
+    pool = POSSESSIVE.sub("", evidence).lower()
+    seen = lambda term: re.search(r"(?<!\w)" + re.escape(term.lower()) + r"(?!\w)", pool) is not None
+    terms = []
+    for sent in split_sentences(text):
+        start = re.search(r"\w", sent)
+        for m in NAME.finditer(sent):
+            for i, part in enumerate(POSSESSIVE.split(m.group())):
+                words = part.split()
+                if start and m.start() == start.start() and i == 0:
+                    if len(words) == 1:
+                        continue
+                    while words and words[0].lower() in OPENERS:
+                        words = words[1:]
+                term = " ".join(words)
+                if len(term) > 1 and not seen(term):
+                    terms.append(term)
+        terms += [n for n in NUMBER.findall(sent) if not seen(n)]
+    return list(dict.fromkeys(terms))
 
 
 class Verifier:
-    """NLI check: does the cited chunk entail the claim?"""
+    """NLI check: does the cited chunk entail the claim, and does it name everything the claim names?"""
 
     def __init__(self, model: str, tau: float):
         self.nli = pipeline("text-classification", model=model, top_k=None, device="cpu")  # keep the GPU for the generator
@@ -93,9 +131,9 @@ class Verifier:
                     continue
                 seen.add(key)
                 score = self.support(claim.text, cand)
-                if score >= self.tau:
+                if score >= self.tau and not new_terms(claim.text, self.joint_premise(cand)):
                     claim.model_cited, claim.cited = claim.cited, [c.id for c in cand]
-                    claim.score, claim.verified = score, True
+                    claim.score, claim.verified, claim.new_terms = score, True, []
                     break
         return claims
 
@@ -106,5 +144,6 @@ class Verifier:
                 claim.verified, claim.score = False, 0.0
                 continue
             claim.score = self.support(claim.text, sources)
-            claim.verified = claim.score >= self.tau
+            claim.new_terms = new_terms(claim.text, self.joint_premise(sources))
+            claim.verified = claim.score >= self.tau and not claim.new_terms
         return claims

@@ -19,6 +19,7 @@ class Claim:
     model_cited: list[str] | None = None  # set when the verifier corrected the model's citation
     label: str = ""  # narrator sentences only: supported | contradicts | unsupported | uncited
     contradicts: list[str] = field(default_factory=list)  # narrator sentences only: handles it contradicts
+    new_terms: list[str] = field(default_factory=list)  # names/numbers its cited sources lack (any one fails it)
     attention: dict[str, float] = field(default_factory=dict)  # chunk_id -> attention mass
 
 

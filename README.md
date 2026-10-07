@@ -4,11 +4,11 @@ A small, honest demo of **SEAR** (Sparse Epistemically Anchored Reasoning), the 
 
 It shows three things on a hand-built film corpus:
 
-1. **Grounded answers.** Every claim cites a corpus chunk, and a verifier checks that the chunk actually supports it.
+1. **Grounded answers.** Every claim cites a corpus chunk, and a verifier checks that the chunk actually supports it: an NLI model must find entailment, and every name and number in the claim must appear in the chunk (NLI alone read "won Best Animated Feature" as entailed by "won Best Picture").
 2. **Corpus over memory.** On counterfactual probes, the answer follows the corpus even when the model "knows" otherwise.
 3. **An explicit failure state.** When the corpus can't support an answer, SEAR says so instead of guessing.
 
-An optional **narrator** (off by default) turns the dense grounded report into a readable summary. It sees only the verified report, one handle per verified sentence (C1, C2, ...), cites those handles, and each of its sentences is re-verified against the ones it cites. The original grounded report is always shown underneath.
+An optional **narrator** (off by default) turns the dense grounded report into a readable summary. It sees only the verified report, one handle per verified sentence (C1, C2, ...), cites those handles, and each of its sentences is re-verified against the ones it cites, by the same two checks. The original grounded report is always shown underneath.
 
 This is ENG 01 Stages 0–1 plus the Stage 4 narrator pulled forward. Nothing here is a measured spec yet (see the GIN ENG 00 promotion rule).
 

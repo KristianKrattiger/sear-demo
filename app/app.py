@@ -14,6 +14,8 @@ def get_sear():
 def badge(s):
     if s.label == "contradicts":
         return f" :red[contradicts {', '.join(s.contradicts)}]"
+    if s.label == "unsupported" and s.new_terms:
+        return f" :orange[not in the cited claims: {', '.join(s.new_terms)}]"
     return {"unsupported": " :orange[not supported by the report]", "uncited": " :orange[uncited]"}.get(s.label, "")
 
 
@@ -58,7 +60,8 @@ if query:
         for c in report.claims:
             mark = "✅" if c.verified else "✖️ dropped"
             fix = f" (model cited `{', '.join(c.model_cited)}`)" if c.model_cited else ""
-            st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}`{fix} (entailment {c.score:.2f})")
+            missing = f", not in the source: {', '.join(c.new_terms)}" if c.new_terms else ""
+            st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}`{fix} (entailment {c.score:.2f}{missing})")
 
     with st.expander("Retrieved chunks"):
         for ch in report.retrieved:

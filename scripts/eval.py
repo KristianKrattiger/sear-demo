@@ -16,7 +16,8 @@ Probe layers:
 Narrator probes (--narrator, <corpus>/narrator_probes.jsonl):
   keep                   the summary keeps this corpus value in a sentence labelled supported
   slip_regex             never shown as supported; a contradicts/unsupported badge catches the slip
-  seed                   control: swap seed.from for seed.to in a verified sentence and check the badge fires
+  seed                   control: swap seed.from for seed.to in a verified sentence and check the badge fires;
+                         the same swap in the source chunk's sentence checks whether the gate would withhold it
 
 Per-probe detail is written to runs/<corpus>_eval.jsonl (and runs/<corpus>_narrator.jsonl).
 """
@@ -30,6 +31,8 @@ from sear_demo.config import load_config
 from sear_demo.narrator import label, seeded
 from sear_demo.corpus import load_probes
 from sear_demo.pipeline import Sear
+from sear_demo.schema import Claim
+from sear_demo.segment import split_sentences
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--corpus", default="corpus", help="folder holding chunks.jsonl and probes.jsonl")
@@ -61,6 +64,19 @@ refusals = []  # (probe id, layer, who): the generator wrote NOT SUPPORTED, or t
 def score(name: str, ok: bool, t=tally):
     t[name][0] += bool(ok)
     t[name][1] += 1
+
+
+def gate_control(chunk_ids: list[str], find: str, to: str) -> Claim | None:
+    """The first sentence of these chunks holding `find`, swapped for `to`, cited to its chunk and checked by the gate.
+
+    The generator kept every corpus value, so the gate never had to stop a swapped one; this asks whether it would."""
+    for cid in chunk_ids:
+        chunk = sear.by_id.get(cid)
+        for sent in split_sentences(chunk.text) if chunk else []:
+            if find.lower() in sent.lower():
+                claim = Claim(re.sub(re.escape(find), to, sent, count=1, flags=re.I), [cid])
+                return sear.verifier.check([claim], sear.by_id)[0]
+    return None
 
 
 for p in probes:
@@ -140,8 +156,13 @@ elif args.narrator:
             s = seeded(r, p["seed"]["from"], p["seed"]["to"])
             if s is not None:
                 label(s, r.handles, sear.by_id, sear.verifier, sear.cfg["narrator"]["contradict_tau"])
-                control = {"text": s.text, "cited": s.cited, "label": s.label, "score": round(s.score, 3)}
+                control = {"text": s.text, "cited": s.cited, "label": s.label, "score": round(s.score, 3), "new_terms": s.new_terms}
                 score("seeded slip badged (control)", s.label != "supported", ntally)
+                g = gate_control(r.handles[s.cited[0]].cited, p["seed"]["from"], p["seed"]["to"])
+                if g is not None:
+                    control["gate"] = {"text": g.text, "cited": g.cited, "score": round(g.score, 3), "verified": g.verified, "new_terms": g.new_terms}
+                    score("gate withheld the seeded swap (control)", not g.verified, ntally)
+                    score("gate withheld the seeded swap, NLI score alone", g.score < sear.verifier.tau, ntally)
         score("narrator ran", not nar.skipped, ntally)
         if not nar.skipped:  # a skipped narrator keeps nothing and slips nothing; score only the runs
             score("narrator kept the corpus value (runs)", kept, ntally)
@@ -151,7 +172,8 @@ elif args.narrator:
             "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},
             "skipped": nar.skipped, "unknown_ids": nar.unknown_ids,
             "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited, nar.sources)},
-                           "label": s.label, "score": round(s.score, 3), "contradicts": s.contradicts} for s in nar.sentences],
+                           "label": s.label, "score": round(s.score, 3), "contradicts": s.contradicts, "new_terms": s.new_terms}
+                          for s in nar.sentences],
             "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept, "control": control,
         })
 

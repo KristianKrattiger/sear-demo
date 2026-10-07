@@ -10,6 +10,7 @@ from itertools import combinations
 from .prompts import NARRATE, format_report
 from .segment import segment
 from .schema import Chunk, Claim, Narration, Report
+from .verify import new_terms
 
 
 def as_chunk(handle: str, claim: Claim, by_id: dict[str, Chunk]) -> Chunk:
@@ -52,7 +53,9 @@ def contradicted(text: str, sources: list[Chunk], verifier, tau: float) -> list[
 
 
 def label(s: Claim, handles: dict[str, Claim], by_id: dict[str, Chunk], verifier, contradict_tau: float = 0.5) -> Claim:
-    """Check one summary sentence against the handles it cites and label it in place."""
+    """Check one summary sentence against the handles it cites and label it in place.
+
+    Supported needs entailment, no contradiction, and no name or number the cited handles lack."""
     s.cited = list(dict.fromkeys(h for h in s.cited if h in handles))  # valid, deduplicated
     if not s.cited:
         s.verified, s.score, s.label = False, 0.0, "uncited"
@@ -60,7 +63,9 @@ def label(s: Claim, handles: dict[str, Claim], by_id: dict[str, Chunk], verifier
     sources = [as_chunk(h, handles[h], by_id) for h in s.cited]
     s.score = verifier.support(s.text, sources)
     s.contradicts = contradicted(s.text, sources, verifier, contradict_tau)
-    s.verified = s.score >= verifier.tau and not s.contradicts
+    # the film prefix counts as evidence: "Spirited Away won..." may cite a handle that says "The film won..."
+    s.new_terms = new_terms(s.text, verifier.joint_premise(sources))
+    s.verified = s.score >= verifier.tau and not s.contradicts and not s.new_terms
     s.label = "contradicts" if s.contradicts else "supported" if s.verified else "unsupported"
     return s
 

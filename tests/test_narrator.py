@@ -171,3 +171,15 @@ def test_seeded_slip_swaps_a_verified_value_and_the_badge_fires():
     assert label(s, r.handles, BY_ID, _verifier()).label == "contradicts"
     assert seeded(r, "giger", "Druillet").text == "Druillet designed the creature."  # case-insensitive find
     assert seeded(r, "Pequod", "Orca") is None  # nothing to seed: the control doesn't apply
+
+
+def test_a_swapped_name_is_unsupported_even_when_nli_entails_it():
+    """The n03 control: the real NLI scored "Best Animated Feature" as entailed by "Best Picture" (0.991)."""
+    by_id = {"spirit-c03": Chunk("spirit-c03", "The film won the Academy Award for Best Picture.", meta={"film": "Spirited Away"})}
+    handles = {"C1": Claim("The film won the Academy Award for Best Picture.", ["spirit-c03"], verified=True)}
+    v = _verifier()
+    v.entailment, v.contradiction = (lambda premise, hyp: 0.99), (lambda premise, hyp: 0.0)
+    s = label(Claim("The film won the Academy Award for Best Animated Feature.", ["C1"]), handles, by_id, v)
+    assert (s.label, s.new_terms, s.verified) == ("unsupported", ["Best Animated Feature"], False)
+    s = label(Claim("Spirited Away won the Academy Award for Best Picture.", ["C1"]), handles, by_id, v)
+    assert (s.label, s.new_terms) == ("supported", [])  # the film's name comes with its source

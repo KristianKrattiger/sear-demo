@@ -64,6 +64,44 @@ def test_repair_finds_two_hop_pair_and_leaves_unsupported():
     assert not claims[1].verified and claims[1].model_cited is None
 
 
+def test_new_terms_finds_names_and_numbers_the_evidence_lacks():
+    from sear_demo.verify import new_terms
+    ev = ("This is about the film Alien. Alien is a film directed by Ridley Scott, released in 1983. "
+          "Sigourney Weaver plays Ellen Ripley; H. R. Giger designed the creature.")
+    assert new_terms("Alien was released in 1979.", ev) == ["1979"]
+    assert new_terms("The film won the Academy Award for Best Animated Feature.",
+                     "The film won the Academy Award for Best Picture.") == ["Best Animated Feature"]
+    assert new_terms("Rick shoots the German Major Laszlo.", "Rick shoots the German Major Strasser.") == ["German Major Laszlo"]
+    assert new_terms("The Nostromo crew meets Giger.", ev) == ["Nostromo"]  # "The" dropped, the name kept
+    # a lone capitalised opener, possessives, initials and lowercase paraphrase pass
+    assert new_terms("Directed by Ridley Scott, it stars Weaver's Ripley. Overall, Giger's design is iconic.", ev) == []
+    assert new_terms("H. R. Giger designed it for director ridley scott.", ev) == []
+
+
+def test_gate_withholds_a_swapped_name_that_nli_entails():
+    """The real NLI read "Best Animated Feature" as entailed by "Best Picture" (0.991); repair finds no chunk naming it."""
+    from sear_demo.schema import Chunk
+    c = Chunk("spirit-c03", "The film won the Academy Award for Best Picture.", meta={"film": "Spirited Away"})
+    v = _word_verifier()
+    v.entailment = lambda premise, hyp: 0.99
+    claims = v.check([Claim("Spirited Away won the Academy Award for Best Animated Feature.", ["spirit-c03"]),
+                      Claim("Spirited Away won the Academy Award for Best Picture.", ["spirit-c03"])], {c.id: c})
+    assert [(x.verified, x.new_terms) for x in claims] == [(False, ["Best Animated Feature"]), (True, [])]
+    v.repair(claims, [c])
+    assert not claims[0].verified and claims[0].model_cited is None
+
+
+def test_repair_recites_a_name_to_the_chunk_that_has_it():
+    from sear_demo.schema import Chunk
+    a, b = Chunk("a", "The captain is Dallas."), Chunk("b", "Tom Skerritt plays the captain.")
+    v = _word_verifier()
+    v.entailment = lambda premise, hyp: 0.99  # an NLI that entails anything: only the names decide
+    [claim] = v.check([Claim("Tom Skerritt plays the captain.", ["a"])], {"a": a, "b": b})
+    assert claim.new_terms == ["Tom Skerritt"]
+    v.repair([claim], [a, b])
+    assert claim.verified and claim.cited == ["b"] and claim.new_terms == []
+
+
 def test_focused_joint_premise_picks_matching_sentences():
     from sear_demo.schema import Chunk
     Verifier = type(_word_verifier())
