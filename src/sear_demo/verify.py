@@ -37,11 +37,23 @@ class Verifier:
             for c in chunks
         )
 
+    @classmethod
+    def focused_joint_premise(cls, chunks: list[Chunk], claim: str) -> str:
+        """The window of each chunk that shares the most words with the claim, joined.
+
+        Two whole chunks make a long premise that the NLI model reads poorly; the
+        two sentences that carry each hop are what it needs to see side by side.
+        """
+        words = lambda t: set(re.findall(r"\w+", t.lower()))
+        target = words(claim)
+        return " ".join(max(cls.premises(c), key=lambda w: (len(words(w) & target), -len(w))) for c in chunks)
+
     def support(self, claim: str, sources: list[Chunk]) -> float:
         premises = [p for s in sources for p in self.premises(s)]
         if len(sources) > 1:
             # a two-hop claim joins facts from several chunks, so no single chunk entails it
             premises.append(self.joint_premise(sources))
+            premises.append(self.focused_joint_premise(sources, claim))
         return max(self.entailment(p, claim) for p in premises)
 
     def repair(self, claims: list[Claim], retrieved: list[Chunk], pair_pool: int = 6) -> list[Claim]:

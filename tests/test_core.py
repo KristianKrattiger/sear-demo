@@ -62,3 +62,12 @@ def test_repair_finds_two_hop_pair_and_leaves_unsupported():
     v.repair(claims, [a, b])
     assert claims[0].verified and set(claims[0].cited) == {"a", "b"}
     assert not claims[1].verified and claims[1].model_cited is None
+
+
+def test_focused_joint_premise_picks_matching_sentences():
+    from sear_demo.schema import Chunk
+    Verifier = type(_word_verifier())
+    a = Chunk("a", "The crew fly the Nostromo. They eat dinner.")
+    b = Chunk("b", "Weaver plays Ripley. Skerritt plays Dallas.")
+    joint = Verifier.focused_joint_premise([a, b], "Skerritt plays Dallas of the Nostromo.")
+    assert "Nostromo" in joint and "Skerritt plays Dallas" in joint and "dinner" not in joint
