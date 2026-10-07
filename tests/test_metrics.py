@@ -1,3 +1,5 @@
+import re
+
 from sear_demo.metrics import fabricated, mentions
 
 EVIDENCE = ("This is about the film Casablanca. Casablanca is a romantic drama directed by Michael Curtiz. "
@@ -62,5 +64,11 @@ def test_the_conflict_fork_is_the_main_corpus_plus_conflicting_chunks():
     main, fork = load_chunks(root / "chunks.jsonl"), load_chunks(root / "conflict" / "chunks.jsonl")
     assert fork[:len(main)] == main  # nothing in the main corpus is changed
     ids = {c.id for c in fork}
+    by_id = {c.id: c for c in fork}
     for p in load_probes(root / "conflict" / "probes.jsonl"):
         assert p["layer"] == "conflict" and len(p["values"]) == 2 and set(p["chunks"]) <= ids
+        # each value's pattern finds it in the chunk that states it, and not in the other one
+        (_, mine), (_, theirs) = p["values"].items()
+        a, b = (by_id[i].text for i in p["chunks"])
+        assert re.search(mine, a, re.I) and re.search(theirs, b, re.I)
+        assert not re.search(mine, b, re.I) and not re.search(theirs, a, re.I)
