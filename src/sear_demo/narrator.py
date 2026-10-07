@@ -4,6 +4,7 @@ It sees the report only, never the corpus: the prompt holds the verified claims
 under handles C1..Cn (one per sentence), and each summary sentence is checked against the claims
 it cites, not against the chunks behind them.
 """
+import re
 from itertools import combinations
 
 from .prompts import NARRATE, format_report
@@ -50,6 +51,29 @@ def contradicted(text: str, sources: list[Chunk], verifier, tau: float) -> list[
     return alone or [c.id for c in sources]
 
 
+def label(s: Claim, handles: dict[str, Claim], by_id: dict[str, Chunk], verifier, contradict_tau: float = 0.5) -> Claim:
+    """Check one summary sentence against the handles it cites and label it in place."""
+    s.cited = list(dict.fromkeys(h for h in s.cited if h in handles))  # valid, deduplicated
+    if not s.cited:
+        s.verified, s.score, s.label = False, 0.0, "uncited"
+        return s
+    sources = [as_chunk(h, handles[h], by_id) for h in s.cited]
+    s.score = verifier.support(s.text, sources)
+    s.contradicts = contradicted(s.text, sources, verifier, contradict_tau)
+    s.verified = s.score >= verifier.tau and not s.contradicts
+    s.label = "contradicts" if s.contradicts else "supported" if s.verified else "unsupported"
+    return s
+
+
+def seeded(report: Report, find: str, replace: str) -> Claim | None:
+    """A control slip: the first verified sentence holding `find`, with it swapped for `replace`,
+    citing that sentence's handle. Labelling it shows whether the badge fires on a known slip."""
+    for h, c in report.handles.items():
+        if find.lower() in c.text.lower():
+            return Claim(re.sub(re.escape(find), replace, c.text, count=1, flags=re.I), [h])
+    return None
+
+
 def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: int = 2,
             contradict_tau: float = 0.5) -> Narration:
     """Summarise a gated report and label each sentence: supported, contradicts, unsupported or uncited.
@@ -70,15 +94,7 @@ def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: 
     sentences = segment(text)
     unknown = sorted({h for s in sentences for h in s.cited if h not in handles})
     for s in sentences:
-        s.cited = list(dict.fromkeys(h for h in s.cited if h in handles))  # valid, deduplicated
-        if not s.cited:
-            s.verified, s.score, s.label = False, 0.0, "uncited"
-            continue
-        sources = [as_chunk(h, handles[h], by_id) for h in s.cited]
-        s.score = verifier.support(s.text, sources)
-        s.contradicts = contradicted(s.text, sources, verifier, contradict_tau)
-        s.verified = s.score >= verifier.tau and not s.contradicts
-        s.label = "contradicts" if s.contradicts else "supported" if s.verified else "unsupported"
+        label(s, handles, by_id, verifier, contradict_tau)
     used = dict.fromkeys(h for s in sentences for h in s.cited)
     return Narration(sentences=sentences, unknown_ids=unknown,
                      sources={h: backing(handles[h], by_id, verifier) for h in used})

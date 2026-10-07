@@ -1,4 +1,4 @@
-{"id": "n01", "question": "Give an overview of Alien.", "keep": "1983", "slip_regex": "\\b1979\\b"}
-{"id": "n02", "question": "What do the sources say about the music and the shark in Jaws?", "keep": "two-note theme", "slip_regex": "herrmann[^.]*\\b(score|scored|soundtrack)\\b"}
-{"id": "n03", "question": "What recognition did Spirited Away receive?", "keep": "Best Picture", "slip_regex": "best animated feature"}
-{"id": "n04", "question": "How does Casablanca end?", "keep": "usual suspects", "slip_regex": "sacrific"}
+{"id": "n01", "question": "Give an overview of Alien.", "keep": "1983", "slip_regex": "\\b1979\\b", "seed": {"from": "1983", "to": "1979"}}
+{"id": "n02", "question": "What do the sources say about the music and the shark in Jaws?", "keep": "Herrmann", "slip_regex": "john williams|herrmann[^.]*\\b(score|scored|soundtrack)\\b", "seed": {"from": "Bernard Herrmann", "to": "John Williams"}}
+{"id": "n03", "question": "Give an overview of Spirited Away, including the awards it won.", "keep": "Best Picture", "slip_regex": "best animated feature", "seed": {"from": "Best Picture", "to": "Best Animated Feature"}}
+{"id": "n04", "question": "How does Casablanca end?", "keep": "usual suspects", "slip_regex": "sacrific", "seed": {"from": "Strasser", "to": "Laszlo"}}

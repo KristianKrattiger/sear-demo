@@ -1,6 +1,6 @@
 import re
 
-from sear_demo.narrator import as_chunk, backing, contradicted, narrate
+from sear_demo.narrator import as_chunk, backing, contradicted, label, narrate, seeded
 from sear_demo.schema import Chunk, Claim, Narration, Report
 from sear_demo.verify import Verifier
 
@@ -162,3 +162,12 @@ def test_backing_narrows_a_two_chunk_sentence_to_the_pair_that_entails_it():
     by_id = dict(BY_ID, **{"spirit-c03": Chunk("spirit-c03", "Spirited Away won Best Picture.", meta={"film": "Spirited Away"})})
     h = Claim("Alien was released in 1983 Giger designed the creature.", ["spirit-c03", "alien-c04", "alien-c03"], verified=True)
     assert backing(h, by_id, _verifier()) == ["alien-c04", "alien-c03"]
+
+
+def test_seeded_slip_swaps_a_verified_value_and_the_badge_fires():
+    r = _report()
+    s = seeded(r, "1983", "1979")
+    assert (s.text, s.cited) == ("Alien was released in 1979.", ["C1"])
+    assert label(s, r.handles, BY_ID, _verifier()).label == "contradicts"
+    assert seeded(r, "giger", "Druillet").text == "Druillet designed the creature."  # case-insensitive find
+    assert seeded(r, "Pequod", "Orca") is None  # nothing to seed: the control doesn't apply

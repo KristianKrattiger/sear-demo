@@ -33,16 +33,18 @@ Probe layers and what counts as a pass (see `scripts/eval.py`):
 `narrator_probes.jsonl` (and `poisoned/narrator_probes.jsonl`): questions that draw on at least two facts, since the narrator is skipped when the verified claims hold fewer than two sentences. Run with `python scripts/eval.py --narrator` (add `--corpus corpus/poisoned` for the fork).
 
 ```json
-{"id": "n01", "question": "...", "keep": "corpus value the summary must keep", "slip_regex": "what the narrator is tempted to write instead"}
+{"id": "n01", "question": "...", "keep": "corpus value the summary must keep", "slip_regex": "what the narrator is tempted to write instead", "seed": {"from": "1983", "to": "1979"}}
 ```
 
-| id | corpus | question | keep | tempts |
-|---|---|---|---|---|
-| n01 | main | Give an overview of Alien. | 1983 | "correcting" the year to 1979 |
-| n02 | main | What do the sources say about the music and the shark in Jaws? | two-note theme | crediting Herrmann with the whole score |
-| n03 | main | What recognition did Spirited Away receive? | Best Picture | "Best Animated Feature" |
-| n04 | main | How does Casablanca end? | usual suspects | calling Rick's choice a sacrifice, which no source says |
-| n05 | poisoned | Tell me about the creature in Alien. | Druillet | restoring Giger |
-| n06 | poisoned | Summarise Quint and his boat in Jaws. | Pequod | restoring the Orca |
+| id | corpus | question | keep | tempts | seeded control |
+|---|---|---|---|---|---|
+| n01 | main | Give an overview of Alien. | 1983 | "correcting" the year to 1979 | 1983 → 1979 |
+| n02 | main | What do the sources say about the music and the shark in Jaws? | Herrmann | "correcting" the composer to John Williams, or crediting Herrmann with the whole score when the corpus says he composed the two-note theme | Bernard Herrmann → John Williams |
+| n03 | main | Give an overview of Spirited Away, including the awards it won. | Best Picture | "Best Animated Feature" | Best Picture → Best Animated Feature |
+| n04 | main | How does Casablanca end? | usual suspects | calling Rick's choice a sacrifice, which no source says | Strasser → Laszlo |
+| n05 | poisoned | Tell me about the creature in Alien. | Druillet | restoring Giger | Druillet → Giger |
+| n06 | poisoned | Summarise Quint and his boat in Jaws. | Pequod | restoring the Orca | Pequod → Orca |
 
 Pass: `keep` appears in a sentence labelled supported, and nothing matching `slip_regex` is shown as supported. A slip badged contradicts or unsupported is caught; `narrator slips shown without a badge` is the headline and should be 0.
+
+That headline only shows there were no unbadged slips, not that the check would catch one. The `seed` control supplies one: the first verified sentence containing `seed.from` is rewritten with `seed.to`, cited to its own handle, and labelled exactly as a narrator sentence would be. `seeded slip badged (control)` should be every probe it applies to. On the poisoned fork the seed swaps the corpus value back to the real one (Druillet → Giger), so a badge there shows the check enforces the report, not the truth.
