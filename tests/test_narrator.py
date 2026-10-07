@@ -1,6 +1,6 @@
 import re
 
-from sear_demo.narrator import as_chunk, backing, contradicted, control, label, narrate, seeded
+from sear_demo.narrator import as_chunk, backing, backing_detail, contradicted, control, label, narrate, seeded
 from sear_demo.schema import Chunk, Claim, Narration, Report
 from sear_demo.verify import Verifier
 
@@ -195,3 +195,23 @@ def test_control_cites_a_second_handle_so_the_swapped_in_name_is_in_evidence():
     assert control(r, "1983", "1979", also=["Pequod"]) is None  # a missing extra handle: the control doesn't apply
     assert control(r, "Pequod", "Orca") is None
     assert control(r, "1983", "1979").cited == ["C1"]
+
+
+def test_backing_says_when_no_cited_chunk_or_pair_entails_the_sentence():
+    v = _verifier()
+    two_hop = Claim("Giger designed the creature Alien was released in 1983.", ["alien-c03", "alien-c04"], verified=True)
+    assert backing_detail(two_hop, BY_ID, v) == (["alien-c03", "alien-c04"], True)  # the pair entails it
+    orphan = Claim("Giger designed the creature during their mission.", ["alien-c03", "alien-c04"], verified=True)
+    assert backing_detail(orphan, BY_ID, v) == (["alien-c03", "alien-c04"], False)
+    single = Claim("Giger designed the creature in Switzerland.", ["alien-c03"], verified=True)
+    assert backing_detail(single, BY_ID, v) == (["alien-c03"], False)
+    assert backing(orphan, BY_ID, v) == ["alien-c03", "alien-c04"]  # backing() returns the same chunks as before
+
+
+def test_narration_marks_handles_whose_source_chain_fell_back():
+    """Like n06's C2 ("... during their mission"): verified with its paragraph, entailed by no cited chunk alone."""
+    claim = Claim("Alien was released in 1983. Giger designed the creature during their mission.", ["alien-c04", "alien-c03"],
+                  verified=True, score=0.9)
+    report = Report(query="Tell me about Alien.", retrieved=list(BY_ID.values()), claims=[claim])
+    n = narrate(report, FakeLLM("Alien was released in 1983 [C1]. Giger designed the creature [C2]."), _verifier(), BY_ID)
+    assert n.sources == {"C1": ["alien-c04"], "C2": ["alien-c04", "alien-c03"]} and n.unbacked == ["C2"]

@@ -216,7 +216,7 @@ elif args.narrator:
     controls = defaultdict(list)
     for c in load_probes(corpus / "narrator_controls.jsonl") if (corpus / "narrator_controls.jsonl").exists() else []:
         controls[c["probe"]].append(c)
-    unbadged = sentences = supported = uncited = 0
+    unbadged = sentences = supported = uncited = chained = unbacked = 0
     for p in nprobes:
         res = sear.ask(p["question"], narrator=True)
         r, nar = res.report, res.narration
@@ -230,6 +230,9 @@ elif args.narrator:
         supported += len(shown)
         # cited keeps only valid handles: a sentence that cited only unknown ones is left with none
         uncited += sum(s.label == "uncited" or not s.cited for s in nar.sentences)
+        # source chains: cited handles whose sentence no cited chunk or pair entails fall back to every chunk
+        chained += len(nar.sources)
+        unbacked += len(nar.unbacked)
         # control: a known slip (seed.from swapped for seed.to in a verified sentence) must get a badge
         control = None
         if p.get("seed"):
@@ -255,7 +258,9 @@ elif args.narrator:
             "claims": [claim_row(c) for c in r.claims],
             "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},
             "skipped": nar.skipped, "unknown_ids": nar.unknown_ids,
+            "unbacked": nar.unbacked,
             "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited, nar.sources)},
+                           "unbacked": [h for h in s.cited if h in nar.unbacked],
                            "label": s.label, "score": round(s.score, 3), "contradicts": s.contradicts, "new_terms": s.new_terms}
                           for s in nar.sentences],
             "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept, "control": control, "controls": rows,
@@ -269,6 +274,7 @@ elif args.narrator:
     print(f"{'narrator slips shown without a badge':<45} {unbadged}/{len(nprobes)}")
     print(f"{'summary sentences supported':<45} {supported}/{sentences}")
     print(f"{'summary sentences uncited or unknown handle':<45} {uncited}/{sentences}")
+    print(f"{'source chains with no backing chunk or pair':<45} {unbacked}/{chained} cited handles")
     for name, (ok, n) in sorted(ntally.items()):
         print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")
 

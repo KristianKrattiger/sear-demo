@@ -22,18 +22,27 @@ def as_chunk(handle: str, claim: Claim, by_id: dict[str, Chunk]) -> Chunk:
 def backing(handle: Claim, by_id: dict[str, Chunk], verifier) -> list[str]:
     """The fewest chunks that back this sentence, so its source chain doesn't list every chunk its
     paragraph cited: those that entail it alone, else the first pair that entails it together, else all."""
-    if len(handle.cited) < 2:
-        return list(handle.cited)
+    return backing_detail(handle, by_id, verifier)[0]
+
+
+def backing_detail(handle: Claim, by_id: dict[str, Chunk], verifier) -> tuple[list[str], bool]:
+    """backing(), and whether those chunks were shown to entail the sentence.
+
+    False means no cited chunk alone and no pair of them entails it: the sentence was verified only
+    as part of its paragraph, and the chain falls back to every chunk the paragraph cited. The UI and
+    the log mark those handles instead of implying the listed chunks back the sentence."""
     known = [i for i in handle.cited if i in by_id]
     own = [i for i in known
            if any(verifier.entailment(p, handle.text) >= verifier.tau for p in verifier.premises(by_id[i]))]
     if own:
-        return own
-    if len(known) > 2:  # with two, the pair is all of them anyway
+        return own, True
+    if len(known) > 2:
         for pair in combinations(known, 2):
             if verifier.support(handle.text, [by_id[i] for i in pair]) >= verifier.tau:
-                return list(pair)
-    return list(handle.cited)
+                return list(pair), True
+    elif len(known) == 2:  # the pair is all of them, so the chain is the same either way
+        return list(handle.cited), verifier.support(handle.text, [by_id[i] for i in known]) >= verifier.tau
+    return list(handle.cited), False
 
 
 def contradicted(text: str, sources: list[Chunk], verifier, tau: float) -> list[str]:
@@ -113,5 +122,6 @@ def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: 
     for s in sentences:
         label(s, handles, by_id, verifier, contradict_tau)
     used = dict.fromkeys(h for s in sentences for h in s.cited)
-    return Narration(sentences=sentences, unknown_ids=unknown,
-                     sources={h: backing(handles[h], by_id, verifier) for h in used})
+    backed = {h: backing_detail(handles[h], by_id, verifier) for h in used}
+    return Narration(sentences=sentences, unknown_ids=unknown, sources={h: ids for h, (ids, _) in backed.items()},
+                     unbacked=[h for h, (_, ok) in backed.items() if not ok])

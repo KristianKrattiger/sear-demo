@@ -49,6 +49,9 @@ if query:
                 with st.expander("Sources", expanded=False):
                     for h, c, chunks in report.chain(s.cited, narration.sources):
                         st.markdown(f"**{h}** {c.text}")
+                        if h in narration.unbacked:
+                            st.caption(":orange[No cited chunk or pair entails this sentence on its own: it was verified "
+                                       "only as part of its paragraph. These are all the chunks the paragraph cited.]")
                         for ch in chunks:
                             st.markdown(f"`{ch.id}` {ch.text}")
         if narration.unknown_ids:

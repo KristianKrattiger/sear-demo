@@ -69,6 +69,7 @@ class Narration:
     unknown_ids: list[str] = field(default_factory=list)  # handles or IDs the narrator cited that the report lacks
     skipped: str = ""  # why the narrator did not run; empty when it ran
     sources: dict[str, list[str]] = field(default_factory=dict)  # handle -> the chunk IDs that back that sentence
+    unbacked: list[str] = field(default_factory=list)  # handles no cited chunk or pair entails: sources lists them all
 
 
 @dataclass
