@@ -25,5 +25,6 @@ gate:
 
 narrator:
   enabled: false       # off by default
-  backend: local       # local | api
-  model: TBD
+  backend: local       # local = reuse the loaded Phi-4; api is not wired yet
+  min_claims: 2
+  contradict_tau: 0.5
