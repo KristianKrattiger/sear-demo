@@ -1,6 +1,6 @@
 import re
 
-from sear_demo.narrator import as_chunk, backing, narrate
+from sear_demo.narrator import as_chunk, backing, contradicted, narrate
 from sear_demo.schema import Chunk, Claim, Narration, Report
 from sear_demo.verify import Verifier
 
@@ -136,3 +136,29 @@ def test_backing_keeps_every_chunk_when_only_the_joint_premise_entails():
     assert backing(two_hop, BY_ID, _verifier()) == ["alien-c03", "alien-c04"]
     single = Claim("Giger designed the creature.", ["alien-c03"], verified=True)
     assert backing(single, BY_ID, _verifier()) == ["alien-c03"]
+
+
+def _strict_verifier():
+    """An NLI that calls anything its premise doesn't cover a contradiction, like the real model can on a partial premise."""
+    v = _verifier()
+    words = lambda t: set(t.lower().replace(".", "").split())
+    v.contradiction = lambda premise, hyp: float(not words(hyp) <= words(premise))
+    return v
+
+
+def test_a_sentence_merging_two_claims_is_judged_against_both():
+    n = narrate(_report(), FakeLLM("Alien was released in 1983 Giger designed the creature [C1][C2]."),
+                _strict_verifier(), BY_ID)
+    assert [(s.label, s.contradicts) for s in n.sentences] == [("supported", [])]  # each claim alone would "contradict"
+
+
+def test_contradiction_names_the_claims_that_conflict():
+    v, chunks = _verifier(), [as_chunk("C1", _report().handles["C1"], BY_ID), as_chunk("C2", _report().handles["C2"], BY_ID)]
+    assert contradicted("Alien was released in 1979.", chunks[:1], v, 0.5) == ["C1"]
+    assert contradicted("Alien was released in 1979 Giger designed the creature.", chunks, v, 0.5) == ["C1"]
+
+
+def test_backing_narrows_a_two_chunk_sentence_to_the_pair_that_entails_it():
+    by_id = dict(BY_ID, **{"spirit-c03": Chunk("spirit-c03", "Spirited Away won Best Picture.", meta={"film": "Spirited Away"})})
+    h = Claim("Alien was released in 1983 Giger designed the creature.", ["spirit-c03", "alien-c04", "alien-c03"], verified=True)
+    assert backing(h, by_id, _verifier()) == ["alien-c04", "alien-c03"]

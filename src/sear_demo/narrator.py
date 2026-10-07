@@ -4,6 +4,8 @@ It sees the report only, never the corpus: the prompt holds the verified claims
 under handles C1..Cn (one per sentence), and each summary sentence is checked against the claims
 it cites, not against the chunks behind them.
 """
+from itertools import combinations
+
 from .prompts import NARRATE, format_report
 from .segment import segment
 from .schema import Chunk, Claim, Narration, Report
@@ -16,13 +18,36 @@ def as_chunk(handle: str, claim: Claim, by_id: dict[str, Chunk]) -> Chunk:
 
 
 def backing(handle: Claim, by_id: dict[str, Chunk], verifier) -> list[str]:
-    """The chunks that entail this sentence on their own, so its source chain shows one chunk, not
-    the four its paragraph cited. Falls back to all of them when only the joint premise entails it."""
+    """The fewest chunks that back this sentence, so its source chain doesn't list every chunk its
+    paragraph cited: those that entail it alone, else the first pair that entails it together, else all."""
     if len(handle.cited) < 2:
         return list(handle.cited)
-    own = [i for i in handle.cited if i in by_id
-           and any(verifier.entailment(p, handle.text) >= verifier.tau for p in verifier.premises(by_id[i]))]
-    return own or list(handle.cited)
+    known = [i for i in handle.cited if i in by_id]
+    own = [i for i in known
+           if any(verifier.entailment(p, handle.text) >= verifier.tau for p in verifier.premises(by_id[i]))]
+    if own:
+        return own
+    if len(known) > 2:  # with two, the pair is all of them anyway
+        for pair in combinations(known, 2):
+            if verifier.support(handle.text, [by_id[i] for i in pair]) >= verifier.tau:
+                return list(pair)
+    return list(handle.cited)
+
+
+def contradicted(text: str, sources: list[Chunk], verifier, tau: float) -> list[str]:
+    """Handles the sentence contradicts, judged against all its cited claims together.
+
+    A sentence that merges C2 and C3 says things C2 alone doesn't, and NLI on that partial
+    premise can read the extra as conflict. So the cited claims together must contradict it;
+    then the badge names the ones that also do alone, or all of them if none does.
+    """
+    # joint_premise of one chunk is the claim with the film prefix the verifier's premises use
+    if verifier.contradiction(verifier.joint_premise(sources), text) <= tau:
+        return []
+    if len(sources) == 1:
+        return [sources[0].id]
+    alone = [c.id for c in sources if verifier.contradiction(verifier.joint_premise([c]), text) > tau]
+    return alone or [c.id for c in sources]
 
 
 def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: int = 2,
@@ -51,9 +76,7 @@ def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: 
             continue
         sources = [as_chunk(h, handles[h], by_id) for h in s.cited]
         s.score = verifier.support(s.text, sources)
-        # joint_premise of one chunk is the claim with the film prefix the verifier's premises use
-        s.contradicts = [c.id for c in sources
-                         if verifier.contradiction(verifier.joint_premise([c]), s.text) > contradict_tau]
+        s.contradicts = contradicted(s.text, sources, verifier, contradict_tau)
         s.verified = s.score >= verifier.tau and not s.contradicts
         s.label = "contradicts" if s.contradicts else "supported" if s.verified else "unsupported"
     used = dict.fromkeys(h for s in sentences for h in s.cited)
