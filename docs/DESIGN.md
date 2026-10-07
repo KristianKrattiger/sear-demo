@@ -13,28 +13,9 @@ A live demo for Prof. Liu. It should be short, falsifiable, and honest about its
 5. **Close (optional): poison fork.** Same question on `corpus/poisoned/`. You get a fully cited, verified, wrong answer. That is why GIN needs governance and not just engineering.
 6. **Numbers.** The eval table: fabrication rate, counterfactual adherence, failure-state precision/recall, and the narrator's verification rate.
 
-## Pipeline
+## Pipeline and narrator rules
 
-```
-query
-  → retrieve      top-k chunks (stable IDs) from FAISS
-  → generate      local model; every sentence must end with [chunk_id]
-  → segment       sentence-level claims, each with its cited IDs
-  → verify        NLI: does the cited chunk entail the claim?
-  → gate          drop failed claims; if verified fraction < φ → FAILURE STATE
-  → narrator      (optional, off by default) summary over the gated report only
-                  → handle check (only report IDs allowed) → NLI re-verify
-  → render        [narrator summary] + grounded report + citations
-```
-
-Attention over retrieved chunks is logged per claim when a local model is used. That is the baseline for the later "attention as grounding certificate" stage. It is shown as a heatmap and framed as a hypothesis, not a result.
-
-## Narrator rules
-
-- The input is the gated report only. It never sees the corpus or the retrieved chunks.
-- Every summary sentence must cite chunk IDs that appear in the report. Unknown IDs are flagged.
-- If the gate emitted the failure state, the narrator doesn't run.
-- Each summary sentence is NLI-checked against the text of its cited chunks, and unsupported sentences are badged in the UI.
+These now live in [ARCHITECTURE.md](ARCHITECTURE.md), which follows the current code: retrieval, citation-group segmentation, verification by NLI plus the names-and-numbers check, citation repair, the gate, and the narrator's handles, labels and source chains. In short, the narrator sees only the verified report as one handle per sentence, cites those handles, and every summary sentence is re-checked against the handles it cites and badged when a check fails.
 
 ## Default choices (change freely)
 
