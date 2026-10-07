@@ -25,7 +25,7 @@ cfg = load_config()
 tau = cfg["narrator"]["contradict_tau"]
 v = Verifier(cfg["verifier"]["model"], cfg["verifier"]["tau"])
 
-for name, folder in (("corpus", "corpus"), ("poisoned", "corpus/poisoned")):
+for name, folder in (("corpus", "corpus"), ("poisoned", "corpus/poisoned"), ("conflict", "corpus/conflict")):
     log = Path(args.runs) / f"{name}_eval.jsonl"
     if not log.exists():
         continue

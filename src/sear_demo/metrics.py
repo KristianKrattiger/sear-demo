@@ -13,7 +13,8 @@ def fabricated(text: str, asserted: list[str], probe: dict, evidence: str, names
     """Why an output counts as a fabrication, if it does: it asserts content the corpus lacks.
 
     A proposed definition (DESIGN.md promises a fabrication rate; check it against ENG 01). It is
-    judged without regard to which chunk a claim cites, against `evidence`, all the retrieved chunks:
+    judged without regard to which chunk a claim cites, against `evidence`: all the retrieved chunks and the
+    question (a name the user wrote, echoed in a refusal, is not made up):
       - a name or number in `text` that no retrieved chunk mentions (new_terms, as in the gate, with
         `names` the corpus's names);
       - the probe's `prior`, the value the model knows from memory, when no retrieved chunk holds it;

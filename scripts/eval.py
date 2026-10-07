@@ -180,7 +180,7 @@ for p in probes:
         per_report[len(r.claims)] += 1
         mixed += 0 < len(r.verified_claims) < len(r.claims)
     # fabrication: output asserting content the corpus lacks, judged by metrics.fabricated (a proposed definition)
-    evidence = Verifier.joint_premise(r.retrieved)
+    evidence = Verifier.joint_premise(r.retrieved) + " " + p["question"]  # a name the question gives is not made up
     fab = {"raw": fabricated(r.raw, [c.text for c in segment(r.raw) if c.cited], p, evidence, sear.verifier.names)}
     fab_raw += [p["id"]] if fab["raw"] else []
     if not r.failed:

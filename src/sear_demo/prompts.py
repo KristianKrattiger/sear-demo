@@ -12,11 +12,18 @@ Answer:"""
 
 # generator.partial_answers: answer what the sources support and decline the rest on its own line,
 # instead of refusing the whole question when any part of it is unsupported.
+# v2. The first version (commit f050615, run 6fdf05d-partial) produced no partial answer: the model put the
+# supported part inside an uncited sentence about what the sources lack ("The sources only mention that ...
+# won Best Picture ..."), which the pipeline reads as a decline. v2 asks for that part as a cited sentence,
+# with a generic example. It was written after seeing v1's outputs on these probes.
 GENERATE_PARTIAL = """Answer the question using ONLY the sources below.
 Every sentence of your answer must end with one or more source IDs in square brackets, like [f0001-c03].
 If a sentence combines facts from more than one source, cite every source it uses, like [f0001-c01][f0001-c02].
-If the sources answer only part of the question, answer that part, then end with one line:
+If the sources answer only part of the question, write the part they do answer as sentences with their source IDs, then end with one line:
 NOT SUPPORTED: <the part of the question the sources do not answer>
+For example, asked "When and where was the painter born?" when a source gives only the year: "The painter was born in 1871 [s-01].
+NOT SUPPORTED: where the painter was born."
+Any sentence that states something the sources say must end with its source IDs, even when it explains what they do not say.
 Only facts about what the question asks for count as a partial answer. If the sources say nothing about it, even if they describe the same film, person or scene, reply exactly: NOT SUPPORTED
 Do not guess, and do not name people, dates or facts the sources do not contain, on any line.
 

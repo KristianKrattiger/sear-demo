@@ -72,3 +72,11 @@ def test_the_conflict_fork_is_the_main_corpus_plus_conflicting_chunks():
         a, b = (by_id[i].text for i in p["chunks"])
         assert re.search(mine, a, re.I) and re.search(theirs, b, re.I)
         assert not re.search(mine, b, re.I) and not re.search(theirs, a, re.I)
+
+
+def test_a_name_the_question_gives_is_not_a_fabrication():
+    """6fdf05d-partial: 'NOT SUPPORTED: Who directed the sequel "Aliens."' was flagged for echoing the question."""
+    refusal = 'The sources do not say who directed the sequel "Aliens." NOT SUPPORTED: Who directed the sequel "Aliens."'
+    corpus_only = "This is about the film Alien. Alien is a film directed by Ridley Scott."
+    assert fabricated(refusal, [], {}, corpus_only) == ["in no retrieved chunk: Aliens"]
+    assert fabricated(refusal, [], {}, corpus_only + " Who directed the sequel Aliens?") == []
