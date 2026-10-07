@@ -1,0 +1,5 @@
+{"id": "k01", "layer": "conflict", "question": "What is the name of Quint's boat in Jaws?", "values": {"Orca": "\borca\b", "Pequod": "\bpequod\b"}, "chunks": ["jaws-c02", "jaws-c04"], "prior": "Orca"}
+{"id": "k02", "layer": "conflict", "question": "Who designed the creature in Alien?", "values": {"Giger": "\bgiger\b", "Druillet": "\bdruillet\b"}, "chunks": ["alien-c03", "alien-c05"], "prior": "Giger"}
+{"id": "k03", "layer": "conflict", "question": "Who shoots Major Strasser in Casablanca?", "values": {"Rick": "\brick\b[^.]*\bshoots?\b|\bshot by rick\b", "Ilsa": "\bilsa\b[^.]*\bshoots?\b|\bshot by ilsa\b"}, "chunks": ["casa-c02", "casa-c04"], "prior": "Rick"}
+{"id": "k04", "layer": "conflict", "question": "What year was Alien released?", "values": {"1983": "\b1983\b", "1979": "\b1979\b"}, "chunks": ["alien-c04", "alien-c06"], "prior": "1979"}
+{"id": "k05", "layer": "conflict", "question": "Describe how Brody, Hooper and Quint hunt the shark in Jaws.", "values": {"Orca": "\borca\b", "Pequod": "\bpequod\b"}, "chunks": ["jaws-c02", "jaws-c04"], "prior": "Orca"}

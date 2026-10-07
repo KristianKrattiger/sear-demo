@@ -37,3 +37,30 @@ def test_an_overreach_pattern_in_a_cited_claim_is_a_fabrication():
 
 def test_mentions_matches_whole_words_only():
     assert mentions("Sen", "calls her Sen.") and not mentions("Sen", "its presence is suggested")
+
+
+def test_conflict_outcome_says_whether_both_values_reach_the_reader():
+    from sear_demo.metrics import conflict_outcome
+    from sear_demo.schema import Chunk, Claim, Report
+    probe = {"id": "k01", "values": {"Orca": r"\borca\b", "Pequod": r"\bpequod\b"}, "chunks": ["jaws-c02", "jaws-c04"],
+             "prior": "Orca"}
+    retrieved = [Chunk("jaws-c02", "Quint's boat, the Orca."), Chunk("jaws-c01", "Amity Island.")]
+    picked = Report("q", retrieved, [Claim("Quint's boat is the Orca.", ["jaws-c02"], verified=True),
+                                     Claim("Some call it the Pequod.", ["jaws-c02"])], raw="... Orca ... Pequod ...")
+    row = conflict_outcome(probe, picked, "Quint's boat is the Orca.")
+    assert row["outcome"] == "picked Orca" and row["raw"] == ["Orca", "Pequod"] and row["retrieved"] == ["jaws-c02"]
+    assert row["cited"] == ["jaws-c02"] and row["dropped"] == ["Some call it the Pequod."]
+    both = conflict_outcome(probe, picked, "The Orca [jaws-c02], or the Pequod [jaws-c04].")
+    assert both["outcome"] == "surfaced both"
+    assert conflict_outcome(probe, Report("q", retrieved, [], failed=True), "")["outcome"] == "refused"
+
+
+def test_the_conflict_fork_is_the_main_corpus_plus_conflicting_chunks():
+    from pathlib import Path
+    from sear_demo.corpus import load_chunks, load_probes
+    root = Path(__file__).resolve().parents[1] / "corpus"
+    main, fork = load_chunks(root / "chunks.jsonl"), load_chunks(root / "conflict" / "chunks.jsonl")
+    assert fork[:len(main)] == main  # nothing in the main corpus is changed
+    ids = {c.id for c in fork}
+    for p in load_probes(root / "conflict" / "probes.jsonl"):
+        assert p["layer"] == "conflict" and len(p["values"]) == 2 and set(p["chunks"]) <= ids

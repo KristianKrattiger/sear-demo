@@ -28,3 +28,17 @@ def fabricated(text: str, asserted: list[str], probe: dict, evidence: str) -> li
     if probe.get("forbid_regex") and re.search(probe["forbid_regex"], said, re.I):
         reasons.append("overreach: forbid_regex")
     return reasons
+
+
+def conflict_outcome(p: dict, r, kept: str) -> dict:
+    """Which of the conflicting values the answer states: both (the conflict reaches the reader), one (picked
+    silently), or neither. Also whether retrieval returned both conflicting chunks, and what the claims cite."""
+    said = lambda text: [v for v, rx in p["values"].items() if re.search(rx, text, re.I)]
+    shown = said(kept)
+    outcome = ("refused" if r.failed else "surfaced both" if len(shown) == len(p["values"])
+               else f"picked {shown[0]}" if shown else "neither value")
+    retrieved = [c.id for c in r.retrieved]
+    return {"probe": p["id"], "outcome": outcome, "raw": said(r.raw), "memory": p.get("prior"),
+            "retrieved": [i for i in p["chunks"] if i in retrieved],
+            "cited": sorted({i for c in r.verified_claims for i in c.cited}),
+            "dropped": [c.text for c in r.claims if not c.verified]}

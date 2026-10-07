@@ -12,6 +12,7 @@ Probe layers:
   out_of_corpus,
   near_miss              emit the failure state; near_miss has neighbouring facts in the corpus
   overreach              never emit a claim matching forbid_regex (the source doesn't support it)
+  conflict               (conflict fork) two chunks disagree; reports which value the answer states, unscored
 
 Narrator probes (--narrator, <corpus>/narrator_probes.jsonl):
   keep                   the summary keeps this corpus value in a sentence labelled supported
@@ -35,7 +36,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from sear_demo.config import apply_overrides, load_config
-from sear_demo.metrics import fabricated
+from sear_demo.metrics import conflict_outcome, fabricated
 from sear_demo.narrator import as_chunk, control as make_control, label, seeded
 from sear_demo.corpus import load_probes
 from sear_demo.pipeline import Sear
@@ -75,6 +76,8 @@ SHOULD_REFUSE = ("out_of_corpus", "near_miss")
 partial_path = corpus / "partial_expect.jsonl"
 supportable = {r["probe"]: r["supportable"] for r in load_probes(partial_path)} if partial_path.exists() else {}
 partials = []  # (probe id, layer): answered and declined a part
+conflicts = []  # conflict fork: one row per probe, reported rather than scored
+
 refusals = []  # (probe id, layer, who): the generator wrote NOT SUPPORTED, or the gate withheld its claims
 
 
@@ -187,6 +190,8 @@ for p in probes:
 
     if layer in SHOULD_REFUSE:
         score(f"refused ({layer})", r.failed)
+    elif layer == "conflict":
+        conflicts.append(conflict_outcome(p, r, kept))
     elif layer == "overreach":
         rx = re.compile(p["forbid_regex"], re.I)
         # a refusal that echoes the question ("...why Ripley destroys...") is not overreach; a gate withhold is,
@@ -206,6 +211,7 @@ for p in probes:
         "probe": p["id"], "layer": layer, "question": p["question"], "expect": p.get("expect"),
         "failed": r.failed, "retrieved": [c.id for c in r.retrieved], "raw": r.raw,
         "claims": [claim_row(c) for c in r.claims], "declined": r.declined, "fabrication": fab,
+        **({"conflict": conflicts[-1]} if layer == "conflict" else {}),
     })
 
 out = Path(args.out)
@@ -241,6 +247,10 @@ if should:
 if refusals:
     over = ", ".join(f"{pid} ({layer})" for pid, layer, _ in refusals if layer not in SHOULD_REFUSE) or "none"
     print(f"{'failure-state precision':<45} {right}/{len(refusals)} ({right / len(refusals):.0%}); over-refused: {over}")
+for row in conflicts:
+    print(f"{'conflict ' + row['probe']:<45} {row['outcome']} (raw states: {', '.join(row['raw']) or 'neither'}; "
+          f"memory: {row['memory']}; conflicting chunks retrieved: {', '.join(row['retrieved']) or 'none'}; "
+          f"verified claims cite: {', '.join(row['cited']) or 'nothing'}{'; dropped: ' + str(len(row['dropped'])) if row['dropped'] else ''})")
 answered_ids = len(probes) - len(refusals)
 print(f"{'partial answers (answered, declined a part)':<45} {len(partials)}/{answered_ids} answered"
       f"{': ' + ', '.join(f'{pid} ({layer})' for pid, layer in partials) if partials else ''}")
