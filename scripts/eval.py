@@ -20,14 +20,18 @@ Narrator probes (--narrator, <corpus>/narrator_probes.jsonl):
                          the same swap in the source chunk's sentence checks whether the gate would withhold it
 
 Per-probe detail is written to runs/<corpus>_eval.jsonl (and runs/<corpus>_narrator.jsonl).
+--out puts them in another folder, and --set runs a config flag on without editing the config:
+
+    python scripts/eval.py --narrator --out runs/<name> --set verifier.granularity=sentence
 """
 import argparse
 import json
 import re
+import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from sear_demo.config import load_config
+from sear_demo.config import apply_overrides, load_config
 from sear_demo.narrator import label, seeded
 from sear_demo.corpus import load_probes
 from sear_demo.pipeline import Sear
@@ -37,9 +41,11 @@ from sear_demo.segment import split_sentences
 ap = argparse.ArgumentParser()
 ap.add_argument("--corpus", default="corpus", help="folder holding chunks.jsonl and probes.jsonl")
 ap.add_argument("--narrator", action="store_true", help="also run <corpus>/narrator_probes.jsonl with the narrator on")
+ap.add_argument("--out", default="runs", help="folder for the per-probe logs")
+ap.add_argument("--set", action="append", default=[], metavar="SECTION.KEY=VALUE", help="override a config value (repeatable)")
 args = ap.parse_args()
 
-cfg = load_config()
+cfg = apply_overrides(load_config(), args.set)
 corpus = Path(args.corpus)
 index_dir = Path(cfg["corpus"]["index_dir"]) / corpus.name
 cfg["corpus"].update(chunks=str(corpus / "chunks.jsonl"), probes=str(corpus / "probes.jsonl"), index_dir=str(index_dir))
@@ -64,6 +70,14 @@ refusals = []  # (probe id, layer, who): the generator wrote NOT SUPPORTED, or t
 def score(name: str, ok: bool, t=tally):
     t[name][0] += bool(ok)
     t[name][1] += 1
+
+
+def claim_row(c: Claim) -> dict:
+    """A report claim for the log; a claim repair couldn't fix also logs repair's best candidate."""
+    row = {"text": c.text, "cited": c.cited, "model_cited": c.model_cited, "score": round(c.score, 3), "verified": c.verified}
+    if c.repair_best:
+        row["repair_best"] = dict(c.repair_best, score=round(c.repair_best["score"], 3))
+    return row
 
 
 def gate_control(chunk_ids: list[str], find: str, to: str) -> Claim | None:
@@ -104,14 +118,18 @@ for p in probes:
     log.append({
         "probe": p["id"], "layer": layer, "question": p["question"], "expect": p.get("expect"),
         "failed": r.failed, "retrieved": [c.id for c in r.retrieved], "raw": r.raw,
-        "claims": [{"text": c.text, "cited": c.cited, "model_cited": c.model_cited, "score": round(c.score, 3), "verified": c.verified} for c in r.claims],
+        "claims": [claim_row(c) for c in r.claims],
     })
 
-Path("runs").mkdir(exist_ok=True)
-with open(f"runs/{corpus.name}_eval.jsonl", "w", encoding="utf-8") as f:
+out = Path(args.out)
+out.mkdir(parents=True, exist_ok=True)
+with open(out / f"{corpus.name}_eval.jsonl", "w", encoding="utf-8") as f:
     for row in log:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
+git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True).stdout.strip()
+dirty = " (uncommitted changes)" if git("status", "--porcelain", "--untracked-files=no") else ""
+print(f"\ncommit {git('rev-parse', '--short', 'HEAD') or 'unknown'}{dirty}; overrides: {', '.join(args.set) or 'none'}; logs: {out}")
 print(f"\n{corpus}: {len(probes)} probes")
 print(f"{'claims flagged unsupported by the gate':<45} {unverified}/{emitted}")
 print(f"{'claims re-cited by the verifier':<45} {recited}/{emitted}")
@@ -169,8 +187,7 @@ elif args.narrator:
             score("narrator avoided the slip, raw (runs)", not slip_raw, ntally)
         nlog.append({
             "id": p["id"], "question": p["question"], "keep": p["keep"], "slip_regex": p["slip_regex"], "report_failed": r.failed,
-            "claims": [{"text": c.text, "cited": c.cited, "model_cited": c.model_cited, "score": round(c.score, 3), "verified": c.verified}
-                       for c in r.claims],
+            "claims": [claim_row(c) for c in r.claims],
             "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},
             "skipped": nar.skipped, "unknown_ids": nar.unknown_ids,
             "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited, nar.sources)},
@@ -179,7 +196,7 @@ elif args.narrator:
             "slip_raw": slip_raw, "slip_unbadged": slip_unbadged, "kept": kept, "control": control,
         })
 
-    with open(f"runs/{corpus.name}_narrator.jsonl", "w", encoding="utf-8") as f:
+    with open(out / f"{corpus.name}_narrator.jsonl", "w", encoding="utf-8") as f:
         for row in nlog:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 

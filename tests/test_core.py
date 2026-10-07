@@ -153,3 +153,18 @@ def test_chain_resolves_handles_to_claims_and_chunks():
     r = _report(Claim("Alien was released in 1983.", ["alien-c04"], verified=True))
     [(h, claim, chunks)] = r.chain(["C1", "C9"])
     assert h == "C1" and claim.cited == ["alien-c04"] and [c.id for c in chunks] == ["alien-c04"]
+
+
+def test_repair_records_its_best_failed_candidate():
+    """p15: repair tried the pair that names everything, and the verifier still scored it below tau."""
+    from sear_demo.schema import Chunk
+    a, b = Chunk("a", "Skerritt plays Captain Dallas."), Chunk("b", "The crew fly the Nostromo.")
+    v = _word_verifier()
+    v.entailment = lambda premise, hyp: 0.07 if "Skerritt" in premise and "Nostromo" in premise else 0.0
+    [claim] = v.check([Claim("Skerritt plays Captain Dallas of the Nostromo.", ["a"])], {"a": a, "b": b})
+    v.repair([claim], [a, b])
+    assert not claim.verified and claim.model_cited is None
+    assert claim.repair_best == {"cited": ["a", "b"], "score": 0.07, "new_terms": [], "tried": 3}
+    fixed = v.check([Claim("Holm plays Ash.", ["a"])], {"a": a, "b": Chunk("b", "Holm plays Ash.")})
+    _word_verifier().repair(fixed, [a, Chunk("b", "Holm plays Ash.")])
+    assert fixed[0].verified and fixed[0].repair_best is None

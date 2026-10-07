@@ -115,6 +115,10 @@ class Verifier:
         top `pair_pool`. A repaired claim keeps the model's original citation in
         `model_cited` so the UI can show the correction. Uncited text and claims
         no retrieved chunk supports stay unverified.
+
+        A claim repair can't fix records its best failed candidate in `repair_best` (candidates
+        naming everything the claim names first, then by score), so the log shows whether the
+        search never tried the supporting chunks or tried them and the verifier said no.
         """
         by_id = {c.id: c for c in retrieved}
         for claim in claims:
@@ -124,17 +128,22 @@ class Verifier:
             candidates = [[c] for c in retrieved]
             candidates += [own + [c] for c in retrieved if c not in own]
             candidates += [list(p) for p in combinations(retrieved[:pair_pool], 2)]
-            seen = set()
+            seen, best = set(), None
             for cand in candidates:
                 key = frozenset(c.id for c in cand)
                 if key in seen:
                     continue
                 seen.add(key)
                 score = self.support(claim.text, cand)
-                if score >= self.tau and not new_terms(claim.text, self.joint_premise(cand)):
+                terms = new_terms(claim.text, self.joint_premise(cand))
+                if score >= self.tau and not terms:
                     claim.model_cited, claim.cited = claim.cited, [c.id for c in cand]
                     claim.score, claim.verified, claim.new_terms = score, True, []
                     break
+                if best is None or (not terms, score) > (not best["new_terms"], best["score"]):
+                    best = {"cited": [c.id for c in cand], "score": score, "new_terms": terms}
+            else:
+                claim.repair_best = dict(best, tried=len(seen)) if best else None
         return claims
 
     def check(self, claims: list[Claim], by_id: dict[str, Chunk]) -> list[Claim]:

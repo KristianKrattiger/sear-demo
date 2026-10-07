@@ -1,6 +1,7 @@
 """Is the NLI verifier's input cut at 512 tokens, and how well does it read a long premise?
 
-    python scripts/check_truncation.py    # after scripts/eval.py --narrator, which writes runs/corpus_*.jsonl
+    python scripts/check_truncation.py                 # after scripts/eval.py --narrator, which writes runs/corpus_*.jsonl
+    python scripts/check_truncation.py --runs runs/x   # logs from eval.py --out runs/x
 
 1. Rebuilds every NLI input the gate scored in the last eval (each claim against its cited chunks'
    windows, joint premise and focused joint premise) and counts tokens, for the probes and for the
@@ -10,6 +11,7 @@
 2. Scores one fact against its own chunk and against the four Alien chunks joined, which is why the
    gate scores short windows and takes the best, rather than trusting the joint premise alone.
 """
+import argparse
 import json
 from pathlib import Path
 
@@ -17,11 +19,15 @@ from sear_demo.config import load_config
 from sear_demo.corpus import load_chunks
 from sear_demo.verify import Verifier
 
+ap = argparse.ArgumentParser()
+ap.add_argument("--runs", default="runs", help="folder holding the eval logs")
+args = ap.parse_args()
+
 cfg = load_config()
 v = Verifier(cfg["verifier"]["model"], cfg["verifier"]["tau"])
 chunks = {c.id: c for c in load_chunks(cfg["corpus"]["chunks"])}
 name = Path(cfg["corpus"]["chunks"]).parent.name
-logs = [Path("runs") / f"{name}_eval.jsonl", Path("runs") / f"{name}_narrator.jsonl"]
+logs = [Path(args.runs) / f"{name}_eval.jsonl", Path(args.runs) / f"{name}_narrator.jsonl"]
 
 count = lambda premise, claim: len(v.nli.tokenizer(premise, claim)["input_ids"])
 received = lambda premise, claim: v.nli.preprocess({"text": premise, "text_pair": claim})["input_ids"].shape[-1]

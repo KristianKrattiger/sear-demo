@@ -20,6 +20,7 @@ class Claim:
     label: str = ""  # narrator sentences only: supported | contradicts | unsupported | uncited
     contradicts: list[str] = field(default_factory=list)  # narrator sentences only: handles it contradicts
     new_terms: list[str] = field(default_factory=list)  # names/numbers its cited sources lack (any one fails it)
+    repair_best: dict | None = None  # repair failed: its best candidate {cited, score, new_terms, tried}
     attention: dict[str, float] = field(default_factory=dict)  # chunk_id -> attention mass
 
 
