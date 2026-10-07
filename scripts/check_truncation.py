@@ -1,11 +1,12 @@
 """Is the NLI verifier's input cut at 512 tokens, and how well does it read a long premise?
 
-    python scripts/check_truncation.py    # after scripts/eval.py, which writes runs/corpus_eval.jsonl
+    python scripts/check_truncation.py    # after scripts/eval.py --narrator, which writes runs/corpus_*.jsonl
 
 1. Rebuilds every NLI input the gate scored in the last eval (each claim against its cited chunks'
-   windows, joint premise and focused joint premise) and counts tokens. For the longest it prints the
-   tokens the model actually receives and the score with and without a forced cut at 512: received
-   equal to the full count means nothing was cut.
+   windows, joint premise and focused joint premise) and counts tokens, for the probes and for the
+   narrator probes' reports. The long inputs come from the overview questions, where one paragraph
+   cites every chunk of a film. For the longest it prints the tokens the model actually receives and
+   the score with and without a forced cut at 512: received equal to the full count means nothing was cut.
 2. Scores one fact against its own chunk and against the four Alien chunks joined, which is why the
    gate scores short windows and takes the best, rather than trusting the joint premise alone.
 """
@@ -19,7 +20,8 @@ from sear_demo.verify import Verifier
 cfg = load_config()
 v = Verifier(cfg["verifier"]["model"], cfg["verifier"]["tau"])
 chunks = {c.id: c for c in load_chunks(cfg["corpus"]["chunks"])}
-log = Path("runs") / f"{Path(cfg['corpus']['chunks']).parent.name}_eval.jsonl"
+name = Path(cfg["corpus"]["chunks"]).parent.name
+logs = [Path("runs") / f"{name}_eval.jsonl", Path("runs") / f"{name}_narrator.jsonl"]
 
 count = lambda premise, claim: len(v.nli.tokenizer(premise, claim)["input_ids"])
 received = lambda premise, claim: v.nli.preprocess({"text": premise, "text_pair": claim})["input_ids"].shape[-1]
@@ -35,20 +37,42 @@ def inputs(claim: str, sources) -> list[tuple[str, str]]:
     return [(p, claim) for p in premises]
 
 
+def claims(row: dict) -> list[dict]:
+    """A logged report's claims. Older narrator logs keep only the handles: consecutive handles
+    citing the same chunks are the sentences of one claim, so join them back."""
+    if "claims" in row:
+        return row["claims"]
+    out = []
+    for h in row.get("handles", {}).values():
+        if out and out[-1]["cited"] == h["cited"]:
+            out[-1]["text"] += " " + h["text"]
+        else:
+            out.append({"text": h["text"], "cited": list(h["cited"])})
+    return out
+
+
 pairs = []
-if log.exists():
+for log in logs:
+    if not log.exists():
+        print(f"{log} not found: run scripts/eval.py --narrator first")
+        continue
+    found = []
     for line in log.open(encoding="utf-8"):
-        for c in json.loads(line)["claims"]:
+        for c in claims(json.loads(line)):
             for cited in (c["cited"], c.get("model_cited") or []):  # the gate scored the model's own citation first
                 sources = [chunks[i] for i in cited if i in chunks]
                 if sources:
-                    pairs += inputs(c["text"], sources)
+                    found += inputs(c["text"], sources)
+    sizes = [count(p, h) for p, h in found]
+    if sizes:
+        print(f"NLI inputs the gate scored for {log}: {len(found)}, over 512 tokens: {sum(n > 512 for n in sizes)}, "
+              f"longest: {max(sizes)} tokens")
+    pairs += found
+if pairs:
     sizes = [count(p, h) for p, h in pairs]
-    print(f"NLI inputs the gate scored in {log}: {len(pairs)}, over 512 tokens: {sum(n > 512 for n in sizes)}, "
-          f"longest: {max(sizes)} tokens")
     premise, claim = pairs[max(range(len(pairs)), key=sizes.__getitem__)]
 else:
-    print(f"{log} not found: run scripts/eval.py first. Using the four Alien chunks against a paragraph-long claim.")
+    print("No eval logs: using the four Alien chunks against a paragraph-long claim.")
     alien = [c for i, c in sorted(chunks.items()) if i.startswith("alien-")]
     premise, claim = v.joint_premise(alien), " ".join(c.text for c in alien[:2])
 

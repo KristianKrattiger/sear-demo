@@ -169,6 +169,8 @@ elif args.narrator:
             score("narrator avoided the slip, raw (runs)", not slip_raw, ntally)
         nlog.append({
             "id": p["id"], "question": p["question"], "keep": p["keep"], "slip_regex": p["slip_regex"], "report_failed": r.failed,
+            "claims": [{"text": c.text, "cited": c.cited, "model_cited": c.model_cited, "score": round(c.score, 3), "verified": c.verified}
+                       for c in r.claims],
             "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},
             "skipped": nar.skipped, "unknown_ids": nar.unknown_ids,
             "sentences": [{"text": s.text, "cited": s.cited, "chain": {h: [c.id for c in chunks] for h, _, chunks in r.chain(s.cited, nar.sources)},
