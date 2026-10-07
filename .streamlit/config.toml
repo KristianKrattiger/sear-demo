@@ -1,0 +1,5 @@
+# transformers lazy-loads hundreds of optional modules; Streamlit's file watcher walks them all
+# and logs a traceback for each one whose extras (torchvision) aren't installed. The demo
+# doesn't need reload-on-save, so the watcher is off.
+[server]
+fileWatcherType = "none"
