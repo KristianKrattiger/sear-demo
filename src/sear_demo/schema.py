@@ -41,8 +41,16 @@ class Report:
 
     @property
     def handles(self) -> dict[str, Claim]:
-        """C1..Cn for the verified claims, in report order. The narrator cites these."""
-        return {f"C{i}": c for i, c in enumerate(self.verified_claims, 1)}
+        """C1..Cn, one per sentence of the verified claims, in report order. The narrator cites these.
+
+        The generator often cites a whole paragraph once, so one claim can hold six facts. Splitting
+        gives the narrator atomic handles to cite and check against; each sentence keeps its claim's
+        sources and score, since the gate verified the claim as a whole.
+        """
+        from .segment import split_sentences
+        sents = [Claim(s, list(c.cited), verified=True, score=c.score)
+                 for c in self.verified_claims for s in split_sentences(c.text)]
+        return {f"C{i}": c for i, c in enumerate(sents, 1)}
 
     def chain(self, handles: list[str]) -> list[tuple[str, Claim, list[Chunk]]]:
         """Resolve narrator handles to (handle, claim, the retrieved chunks that claim cites)."""

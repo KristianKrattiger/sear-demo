@@ -89,6 +89,28 @@ def test_format_report_shows_handles_for_verified_claims_only():
     assert "{query}" in NARRATE and "{report}" in NARRATE
 
 
+def test_split_sentences_keeps_initials_titles_and_closing_quotes():
+    from sear_demo.segment import split_sentences
+    assert split_sentences("The creature, by H. R. Giger, has a life cycle. Dr. Hooper agrees!") == [
+        "The creature, by H. R. Giger, has a life cycle.", "Dr. Hooper agrees!"]
+    assert split_sentences('Renault says "round up the usual suspects." Rick walks off. Was it 1942? 1943 it was.') == [
+        'Renault says "round up the usual suspects."', "Rick walks off.", "Was it 1942?", "1943 it was."]
+    assert split_sentences("One sentence only.") == ["One sentence only."]
+
+
+def test_handles_are_one_per_sentence_with_the_claims_sources():
+    r = _report(Claim("Alien was released in 1983. Giger designed the creature.", ["alien-c04", "alien-c03"],
+                      verified=True, score=0.8),
+                Claim("Dropped claim. Also dropped.", ["alien-c03"]))
+    hs = r.handles
+    assert list(hs) == ["C1", "C2"] and hs["C2"].text == "Giger designed the creature."
+    assert all(c.cited == ["alien-c04", "alien-c03"] and c.verified and c.score == 0.8 for c in hs.values())
+    hs["C1"].cited.append("x")
+    assert r.claims[0].cited == ["alien-c04", "alien-c03"]  # handles never alias the claim's list
+    [(_, _, chunks)] = r.chain(["C2"])
+    assert [c.id for c in chunks] == ["alien-c04", "alien-c03"]
+
+
 def test_chain_resolves_handles_to_claims_and_chunks():
     r = _report(Claim("Alien was released in 1983.", ["alien-c04"], verified=True))
     [(h, claim, chunks)] = r.chain(["C1", "C9"])

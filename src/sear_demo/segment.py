@@ -4,11 +4,26 @@ from .schema import Claim
 
 CITE_GROUP = re.compile(r"(?:\s*\[[^\[\]]+\])+")
 CITE = re.compile(r"\[([^\[\]]+)\]")
+SENT_END = re.compile(r"""[.!?]["'\u201d\u2019)\]]*(?=\s+["'\u201c\u2018(\[]?[A-Z0-9])""")
+NOT_END = re.compile(r"(?:^|[\s(.])(?:[A-Z]|Mr|Mrs|Ms|Dr|St|Jr|Sr|vs|Mt|Prof)\.$")
 
 
 def _clean(text: str) -> str:
     text = re.sub(r"\s+([.!?,;])", r"\1", text).strip()
     return text if text.endswith((".", "!", "?")) else text + "."
+
+
+def split_sentences(text: str) -> list[str]:
+    """Sentences of a claim. Initials ("H. R. Giger"), titles ("Dr.") and "U.S." stay inside one sentence;
+    a closing quote after the full stop stays with the sentence it ends."""
+    out, start = [], 0
+    for m in SENT_END.finditer(text):
+        if m.group(0)[0] == "." and NOT_END.search(text[start:m.start() + 1]):
+            continue
+        out.append(text[start:m.end()].strip())
+        start = m.end()
+    out.append(text[start:].strip())
+    return [s for s in out if s]
 
 
 def segment(text: str) -> list[Claim]:

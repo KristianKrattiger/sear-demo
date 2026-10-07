@@ -75,8 +75,8 @@ def test_chunk_ids_and_unknown_handles_are_uncited():
 def test_failed_and_thin_reports_skip_without_calling_the_llm():
     llm = FakeLLM("Alien was released in 1983 [C1].")
     assert narrate(_report(failed=True), llm, _verifier(), BY_ID) == Narration([], skipped="the gate emitted the failure state")
-    assert narrate(_report(n=1), llm, _verifier(), BY_ID) == Narration([], skipped="only 1 verified claim")
-    assert narrate(_report(), llm, _verifier(), BY_ID, min_claims=3).skipped == "only 2 verified claims"
+    assert narrate(_report(n=1), llm, _verifier(), BY_ID) == Narration([], skipped="only 1 verified sentence")
+    assert narrate(_report(), llm, _verifier(), BY_ID, min_claims=3).skipped == "only 2 verified sentences"
     assert llm.prompts == []
 
 
@@ -108,3 +108,14 @@ def test_verifier_reads_entailment_and_contradiction_from_one_nli_call():
 def test_repeated_handle_is_cited_once():
     n = _narrate("Alien was released in 1983 [C1][C1].")
     assert n.sentences[0].cited == ["C1"] and n.sentences[0].label == "supported"
+
+
+def test_one_multi_sentence_claim_is_enough_to_narrate():
+    """The generator often cites a whole paragraph once; its sentences become separate handles."""
+    claim = Claim("Alien was released in 1983. Giger designed the creature.", ["alien-c04", "alien-c03"],
+                  verified=True, score=0.9)
+    report = Report(query="Tell me about Alien.", retrieved=list(BY_ID.values()), claims=[claim])
+    llm = FakeLLM("Giger designed the creature [C2].")
+    n = narrate(report, llm, _verifier(), BY_ID)
+    assert n.skipped == "" and "[C1] Alien was released in 1983.\n[C2] Giger designed the creature." in llm.prompts[0]
+    assert [(s.label, s.cited) for s in n.sentences] == [("supported", ["C2"])]

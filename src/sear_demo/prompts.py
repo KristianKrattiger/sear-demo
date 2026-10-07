@@ -32,5 +32,5 @@ def format_sources(chunks) -> str:
 
 
 def format_report(report) -> str:
-    """The narrator's whole view of the world: verified claims and their handles, no chunk IDs."""
+    """The narrator's whole view of the world: verified sentences and their handles, no chunk IDs."""
     return "\n".join(f"[{h}] {c.text}" for h, c in report.handles.items())

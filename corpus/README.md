@@ -30,7 +30,7 @@ Probe layers and what counts as a pass (see `scripts/eval.py`):
 
 ## Narrator probes
 
-`narrator_probes.jsonl` (and `poisoned/narrator_probes.jsonl`): questions that draw on at least two facts, since the narrator is skipped when fewer than two claims pass the verifier. Run with `python scripts/eval.py --narrator` (add `--corpus corpus/poisoned` for the fork).
+`narrator_probes.jsonl` (and `poisoned/narrator_probes.jsonl`): questions that draw on at least two facts, since the narrator is skipped when the verified claims hold fewer than two sentences. Run with `python scripts/eval.py --narrator` (add `--corpus corpus/poisoned` for the fork).
 
 ```json
 {"id": "n01", "question": "...", "keep": "corpus value the summary must keep", "slip_regex": "what the narrator is tempted to write instead"}

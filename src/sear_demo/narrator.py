@@ -1,7 +1,7 @@
 """The narrator: a plain-language summary of a gated report.
 
 It sees the report only, never the corpus: the prompt holds the verified claims
-under handles C1..Cn, and each summary sentence is checked against the claims
+under handles C1..Cn (one per sentence), and each summary sentence is checked against the claims
 it cites, not against the chunks behind them.
 """
 from .prompts import NARRATE, format_report
@@ -28,7 +28,7 @@ def narrate(report: Report, llm, verifier, by_id: dict[str, Chunk], min_claims: 
     handles = report.handles
     if len(handles) < min_claims:
         n = len(handles)
-        return Narration([], skipped=f"only {n} verified claim" + ("s" if n != 1 else ""))
+        return Narration([], skipped=f"only {n} verified sentence" + ("s" if n != 1 else ""))
     text = llm(NARRATE.format(query=report.query, report=format_report(report)))
     if isinstance(text, tuple):
         text = text[0]

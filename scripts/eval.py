@@ -116,8 +116,9 @@ elif args.narrator:
         # cited keeps only valid handles: a sentence that cited only unknown ones is left with none
         uncited += sum(s.label == "uncited" or not s.cited for s in nar.sentences)
         score("narrator ran", not nar.skipped, ntally)
-        score("narrator kept the corpus value", kept, ntally)
-        score("narrator avoided the slip (raw)", not slip_raw, ntally)
+        if not nar.skipped:  # a skipped narrator keeps nothing and slips nothing; score only the runs
+            score("narrator kept the corpus value (runs)", kept, ntally)
+            score("narrator avoided the slip, raw (runs)", not slip_raw, ntally)
         nlog.append({
             "id": p["id"], "question": p["question"], "keep": p["keep"], "slip_regex": p["slip_regex"], "report_failed": r.failed,
             "handles": {h: {"text": c.text, "cited": c.cited} for h, c in r.handles.items()},

@@ -8,7 +8,7 @@ It shows three things on a hand-built film corpus:
 2. **Corpus over memory.** On counterfactual probes, the answer follows the corpus even when the model "knows" otherwise.
 3. **An explicit failure state.** When the corpus can't support an answer, SEAR says so instead of guessing.
 
-An optional **narrator** (off by default) turns the dense grounded report into a readable summary. It sees only the verified report, cites only the report's chunk IDs, and its sentences are re-verified. The original grounded report is always shown underneath.
+An optional **narrator** (off by default) turns the dense grounded report into a readable summary. It sees only the verified report, one handle per verified sentence (C1, C2, ...), cites those handles, and each of its sentences is re-verified against the ones it cites. The original grounded report is always shown underneath.
 
 This is ENG 01 Stages 0–1 plus the Stage 4 narrator pulled forward. Nothing here is a measured spec yet (see the GIN ENG 00 promotion rule).
 
