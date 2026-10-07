@@ -168,3 +168,18 @@ def test_repair_records_its_best_failed_candidate():
     fixed = v.check([Claim("Holm plays Ash.", ["a"])], {"a": a, "b": Chunk("b", "Holm plays Ash.")})
     _word_verifier().repair(fixed, [a, Chunk("b", "Holm plays Ash.")])
     assert fixed[0].verified and fixed[0].repair_best is None
+
+
+def test_a_name_at_the_start_of_a_sentence_is_checked_when_the_corpus_uses_it_as_a_name():
+    """The n04-initial control: 'Sam' was skipped as a lone first word, and NLI entailed the swap (0.685)."""
+    from sear_demo.verify import corpus_names, new_terms
+    corpus = ["Rick shoots the German Major Strasser to stop the plane.",
+              "The song recurs, played by the pianist Sam. Directed by Michael Curtiz, it won."]
+    names = corpus_names(corpus)
+    assert {"sam", "strasser", "major", "german", "michael", "curtiz"} <= names and "directed" not in names
+    evidence = "This is about the film Casablanca. " + corpus[0]
+    assert new_terms("Sam shoots the German Major Strasser.", evidence, names) == ["Sam"]
+    assert new_terms("Sam shoots the German Major Strasser.", evidence) == []  # without the corpus's names, as before
+    # a lone first word the corpus never uses as a name is still skipped, as are openers
+    assert new_terms("Overall, Rick shoots Strasser. Directed by nobody, it ends.", evidence, names | {"it"}) == []
+    assert new_terms("Rick's shot stops the plane.", evidence, names) == []

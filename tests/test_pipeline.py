@@ -260,3 +260,26 @@ def test_retriever_use_rebuilds_an_index_of_the_wrong_size(tmp_path):
     more = CHUNKS + [Chunk("jaws-c02", "Quint's boat is the Orca.")]
     r.use(more, tmp_path)  # the saved index holds 2 chunks, not 3: rebuilt, not reused
     assert r.index.ntotal == 3 and r.chunks == more
+
+
+def test_the_verifier_learns_the_corpus_names_on_load_and_on_switch(monkeypatch, tmp_path):
+    import json
+    monkeypatch.setattr(pipeline, "load_chunks", lambda path: [Chunk("casa-c03", "Played by the pianist Sam.")])
+    monkeypatch.setattr(pipeline, "Retriever", lambda *a, **k: FakeRetriever())
+    monkeypatch.setattr(pipeline, "Generator", lambda *a, **k: FakeGenerator())
+
+    class NamedVerifier(FakeVerifier):
+        names = set()
+
+    monkeypatch.setattr(pipeline, "Verifier", lambda *a, **k: NamedVerifier())
+    s = Sear(load_config(CONFIG))
+    assert "sam" in s.verifier.names
+    fork = tmp_path / "fork"
+    fork.mkdir()
+    (fork / "chunks.jsonl").write_text(json.dumps({"id": "x", "text": "A boat called the Pequod."}) + "\n", encoding="utf-8")
+    from sear_demo.corpus import load_chunks
+    monkeypatch.setattr(pipeline, "load_chunks", load_chunks)  # the real loader, for the fork on disk
+    s.retriever.use = lambda *a, **k: None
+    s.index_root = tmp_path / "index"
+    s.use_corpus(fork)
+    assert s.verifier.names == {"pequod"}

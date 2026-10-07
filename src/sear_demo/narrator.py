@@ -73,7 +73,7 @@ def label(s: Claim, handles: dict[str, Claim], by_id: dict[str, Chunk], verifier
     s.score = verifier.support(s.text, sources)
     s.contradicts = contradicted(s.text, sources, verifier, contradict_tau)
     # the film prefix counts as evidence: "Spirited Away won..." may cite a handle that says "The film won..."
-    s.new_terms = new_terms(s.text, verifier.joint_premise(sources))
+    s.new_terms = new_terms(s.text, verifier.joint_premise(sources), getattr(verifier, "names", ()))
     s.verified = s.score >= verifier.tau and not s.contradicts and not s.new_terms
     s.label = "contradicts" if s.contradicts else "supported" if s.verified else "unsupported"
     return s

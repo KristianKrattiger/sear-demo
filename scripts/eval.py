@@ -181,11 +181,12 @@ for p in probes:
         mixed += 0 < len(r.verified_claims) < len(r.claims)
     # fabrication: output asserting content the corpus lacks, judged by metrics.fabricated (a proposed definition)
     evidence = Verifier.joint_premise(r.retrieved)
-    fab = {"raw": fabricated(r.raw, [c.text for c in segment(r.raw) if c.cited], p, evidence)}
+    fab = {"raw": fabricated(r.raw, [c.text for c in segment(r.raw) if c.cited], p, evidence, sear.verifier.names)}
     fab_raw += [p["id"]] if fab["raw"] else []
     if not r.failed:
         answered += 1
-        fab["emitted"] = fabricated(" ".join([kept, *r.declined]), [c.text for c in r.verified_claims], p, evidence)
+        fab["emitted"] = fabricated(" ".join([kept, *r.declined]), [c.text for c in r.verified_claims], p, evidence,
+                                    sear.verifier.names)
         fab_out += [p["id"]] if fab["emitted"] else []
 
     if layer in SHOULD_REFUSE:

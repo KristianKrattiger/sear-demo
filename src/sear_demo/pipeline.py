@@ -9,7 +9,7 @@ from .prompts import GENERATE, GENERATE_PARTIAL, format_sources
 from .retrieve import Retriever
 from .segment import answer_and_declines, segment, sentence_claims
 from .schema import Narration, Report, Result
-from .verify import Verifier
+from .verify import Verifier, corpus_names
 
 
 class Sear:
@@ -27,6 +27,7 @@ class Sear:
         g = cfg["generator"]
         self.generator = Generator(g["model"], g["load_in_4bit"], g["max_new_tokens"], g["log_attention"])
         self.verifier = Verifier(cfg["verifier"]["model"], cfg["verifier"]["tau"])
+        self.verifier.names = corpus_names(c.text for c in self.chunks)
         self.narrator_llm = self.generator  # local backend reuses the loaded generator
 
     def use_corpus(self, folder: str | Path) -> None:
@@ -43,6 +44,7 @@ class Sear:
         self.chunks = load_chunks(chunks_path)
         self.by_id = {c.id: c for c in self.chunks}
         self.retriever.use(self.chunks, index_dir, rebuild=stale)
+        self.verifier.names = corpus_names(c.text for c in self.chunks)
         self.chunks_path = chunks_path
 
     def answer(self, query: str) -> Report:

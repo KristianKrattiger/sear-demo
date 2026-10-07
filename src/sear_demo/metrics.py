@@ -9,19 +9,20 @@ def mentions(term: str, text: str) -> bool:
     return re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text, re.I) is not None
 
 
-def fabricated(text: str, asserted: list[str], probe: dict, evidence: str) -> list[str]:
+def fabricated(text: str, asserted: list[str], probe: dict, evidence: str, names=()) -> list[str]:
     """Why an output counts as a fabrication, if it does: it asserts content the corpus lacks.
 
     A proposed definition (DESIGN.md promises a fabrication rate; check it against ENG 01). It is
     judged without regard to which chunk a claim cites, against `evidence`, all the retrieved chunks:
-      - a name or number in `text` that no retrieved chunk mentions (new_terms, as in the gate);
+      - a name or number in `text` that no retrieved chunk mentions (new_terms, as in the gate, with
+        `names` the corpus's names);
       - the probe's `prior`, the value the model knows from memory, when no retrieved chunk holds it;
       - an overreach probe's `forbid_regex`.
     The last two are checked on `asserted`, the claims that carry a citation, because a refusal
     often echoes the question ("...why Ripley destroys..."). It cannot see a false relation between
     names the corpus has ("Strasser shoots Rick"), or an over-credit no probe pattern describes."""
     reasons = [f"in no retrieved chunk: {t}"
-               for t in new_terms(re.sub(r"NOT SUPPORTED:?|\[[^\[\]]*\]", " ", text, flags=re.I), evidence)]
+               for t in new_terms(re.sub(r"NOT SUPPORTED:?|\[[^\[\]]*\]", " ", text, flags=re.I), evidence, names)]
     said = " ".join(asserted)
     if probe.get("prior") and mentions(probe["prior"], said) and not mentions(probe["prior"], evidence):
         reasons.append(f"memory value: {probe['prior']}")

@@ -11,15 +11,28 @@ NUMBER = re.compile(r"\d(?:[\d,.]*\d)?")
 POSSESSIVE = re.compile(r"['\u2019]s\b")
 
 
-def new_terms(text: str, evidence: str) -> list[str]:
+def corpus_names(texts) -> set[str]:
+    """The words a corpus capitalises inside a sentence, lowercased: the words it uses as names."""
+    names = set()
+    for text in texts:
+        for sent in split_sentences(text):
+            start = re.search(r"\w", sent)
+            names.update(w.lower() for m in NAME.finditer(sent) if not (start and m.start() == start.start())
+                         for w in POSSESSIVE.sub("", m.group()).split())
+    return names
+
+
+def new_terms(text: str, evidence: str, names=()) -> list[str]:
     """Names and numbers in `text` that `evidence` never mentions.
 
     NLI reads "won Best Animated Feature" as entailed by "won Best Picture" (0.99 on the real model):
     the award changed but the sentence still sounds supported. A swapped name or number is the slip
     this misses, so the gate and the narrator also require every name and number to appear in the
-    cited evidence. Names are runs of capitalised words; a lone capitalised word
-    at the start of a sentence is skipped (it may just be capitalised there), and leading words like
-    "The" are dropped. Matching ignores case and possessives.
+    cited evidence. Names are runs of capitalised words, and leading words like "The" are dropped. A
+    lone capitalised word at the start of a sentence may be capitalised only by position ("Overall",
+    "Directed"), so it is checked only when it is one of `names`, the words the corpus uses as names
+    (corpus_names): "Sam shoots the German Major Strasser" must find Sam in the evidence. Matching
+    ignores case and possessives.
     """
     pool = POSSESSIVE.sub("", evidence).lower()
     seen = lambda term: re.search(r"(?<!\w)" + re.escape(term.lower()) + r"(?!\w)", pool) is not None
@@ -30,7 +43,7 @@ def new_terms(text: str, evidence: str) -> list[str]:
             for i, part in enumerate(POSSESSIVE.split(m.group())):
                 words = part.split()
                 if start and m.start() == start.start() and i == 0:
-                    if len(words) == 1:
+                    if len(words) == 1 and (words[0].lower() in OPENERS or words[0].lower() not in names):
                         continue
                     while words and words[0].lower() in OPENERS:
                         words = words[1:]
@@ -51,6 +64,7 @@ class Verifier:
         # would cut the last chunk off the premise. Silence the warning rather than truncate.
         logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
         self.tau = tau
+        self.names = set()  # the corpus's names (corpus_names), set by Sear for the corpus in use
 
     def scores(self, premise: str, hypothesis: str) -> dict[str, float]:
         """One NLI call: lowercased label (entailment, contradiction, neutral) -> probability."""
@@ -132,7 +146,7 @@ class Verifier:
                     continue
                 seen.add(key)
                 score = self.support(text, cand)
-                terms = new_terms(text, self.joint_premise(cand))
+                terms = new_terms(text, self.joint_premise(cand), getattr(self, "names", ()))
                 if score >= self.tau and not terms:
                     claim.model_cited, claim.cited = claim.cited, [c.id for c in cand]
                     claim.score, claim.verified, claim.new_terms = score, True, []
@@ -153,6 +167,6 @@ class Verifier:
                 continue
             text = claim.checked or claim.text
             claim.score = self.support(text, sources)
-            claim.new_terms = new_terms(text, self.joint_premise(sources))
+            claim.new_terms = new_terms(text, self.joint_premise(sources), getattr(self, "names", ()))
             claim.verified = claim.score >= self.tau and not claim.new_terms
         return claims
