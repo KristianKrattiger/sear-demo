@@ -29,3 +29,36 @@ def test_gate_fails_below_phi():
 
 def test_gate_fails_on_empty():
     assert gate([], phi=0.5) is False
+
+
+def _word_verifier():
+    """A Verifier whose 'NLI' says entailed when every word of the claim appears in the premise."""
+    import sys, types
+    sys.modules.setdefault("transformers", types.SimpleNamespace(pipeline=None))
+    from sear_demo.verify import Verifier
+
+    v = Verifier.__new__(Verifier)
+    v.tau = 0.5
+    words = lambda t: set(t.lower().replace(".", "").split())
+    v.entailment = lambda premise, hyp: float(words(hyp) <= words(premise))
+    return v
+
+
+def test_repair_recites_wrong_chunk():
+    from sear_demo.schema import Chunk
+    a, b = Chunk("a", "Ripley is the hero."), Chunk("b", "Holm plays Ash.")
+    claims = _word_verifier().check([Claim("Holm plays Ash.", ["a"])], {"a": a, "b": b})
+    assert not claims[0].verified
+    _word_verifier().repair(claims, [a, b])
+    assert claims[0].verified and claims[0].cited == ["b"] and claims[0].model_cited == ["a"]
+
+
+def test_repair_finds_two_hop_pair_and_leaves_unsupported():
+    from sear_demo.schema import Chunk
+    a, b = Chunk("a", "Brody is the police chief."), Chunk("b", "Scheider plays Brody.")
+    claims = [Claim("Scheider plays Brody the police chief.", ["b"]), Claim("Quint owns the Pequod.", ["a"])]
+    v = _word_verifier()
+    v.check(claims, {"a": a, "b": b})
+    v.repair(claims, [a, b])
+    assert claims[0].verified and set(claims[0].cited) == {"a", "b"}
+    assert not claims[1].verified and claims[1].model_cited is None

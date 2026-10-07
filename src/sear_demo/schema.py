@@ -16,6 +16,7 @@ class Claim:
     cited: list[str]
     verified: bool = False
     score: float = 0.0
+    model_cited: list[str] | None = None  # set when the verifier corrected the model's citation
     attention: dict[str, float] = field(default_factory=dict)  # chunk_id -> attention mass
 
 

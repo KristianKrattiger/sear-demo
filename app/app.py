@@ -36,7 +36,8 @@ if query:
         st.subheader("Grounded report")
         for c in report.claims:
             mark = "✅" if c.verified else "✖️ dropped"
-            st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}` (entailment {c.score:.2f})")
+            fix = f" (model cited `{', '.join(c.model_cited)}`)" if c.model_cited else ""
+            st.markdown(f"{mark} {c.text} `{', '.join(c.cited)}`{fix} (entailment {c.score:.2f})")
 
     with st.expander("Retrieved chunks"):
         for ch in report.retrieved:

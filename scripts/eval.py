@@ -43,7 +43,7 @@ def hits(expect, text: str) -> bool:
 
 
 tally = defaultdict(lambda: [0, 0])
-emitted = unverified = 0
+emitted = unverified = recited = 0
 log = []
 
 
@@ -57,6 +57,7 @@ for p in probes:
     kept = "" if r.failed else " ".join(c.text for c in r.verified_claims)
     emitted += len(r.claims)
     unverified += sum(not c.verified for c in r.claims)
+    recited += sum(c.model_cited is not None for c in r.claims)
     layer = p["layer"]
 
     if layer in ("out_of_corpus", "near_miss"):
@@ -74,7 +75,7 @@ for p in probes:
     log.append({
         "probe": p["id"], "layer": layer, "question": p["question"], "expect": p.get("expect"),
         "failed": r.failed, "retrieved": [c.id for c in r.retrieved], "raw": r.raw,
-        "claims": [{"text": c.text, "cited": c.cited, "score": round(c.score, 3), "verified": c.verified} for c in r.claims],
+        "claims": [{"text": c.text, "cited": c.cited, "model_cited": c.model_cited, "score": round(c.score, 3), "verified": c.verified} for c in r.claims],
     })
 
 Path("runs").mkdir(exist_ok=True)
@@ -84,5 +85,6 @@ with open(f"runs/{corpus.name}_eval.jsonl", "w", encoding="utf-8") as f:
 
 print(f"\n{corpus}: {len(probes)} probes")
 print(f"{'claims flagged unsupported by the gate':<45} {unverified}/{emitted}")
+print(f"{'claims re-cited by the verifier':<45} {recited}/{emitted}")
 for name, (ok, n) in sorted(tally.items()):
     print(f"{name:<45} {ok}/{n} ({ok / n:.0%})")

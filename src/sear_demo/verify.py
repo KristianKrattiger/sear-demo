@@ -1,4 +1,5 @@
 import re
+from itertools import combinations
 
 from transformers import pipeline
 
@@ -36,16 +37,51 @@ class Verifier:
             for c in chunks
         )
 
+    def support(self, claim: str, sources: list[Chunk]) -> float:
+        premises = [p for s in sources for p in self.premises(s)]
+        if len(sources) > 1:
+            # a two-hop claim joins facts from several chunks, so no single chunk entails it
+            premises.append(self.joint_premise(sources))
+        return max(self.entailment(p, claim) for p in premises)
+
+    def repair(self, claims: list[Claim], retrieved: list[Chunk], pair_pool: int = 6) -> list[Claim]:
+        """Re-cite claims that failed against the chunks the model named.
+
+        The model sometimes states a supported fact but cites the wrong chunk, or
+        only one of the two chunks a two-hop answer needs. Search the retrieved
+        chunks for a citation that does entail the claim: single chunks first,
+        then the model's own citations plus one more chunk, then pairs from the
+        top `pair_pool`. A repaired claim keeps the model's original citation in
+        `model_cited` so the UI can show the correction. Uncited text and claims
+        no retrieved chunk supports stay unverified.
+        """
+        by_id = {c.id: c for c in retrieved}
+        for claim in claims:
+            if claim.verified or not claim.cited:
+                continue
+            own = [by_id[i] for i in claim.cited if i in by_id]
+            candidates = [[c] for c in retrieved]
+            candidates += [own + [c] for c in retrieved if c not in own]
+            candidates += [list(p) for p in combinations(retrieved[:pair_pool], 2)]
+            seen = set()
+            for cand in candidates:
+                key = frozenset(c.id for c in cand)
+                if key in seen:
+                    continue
+                seen.add(key)
+                score = self.support(claim.text, cand)
+                if score >= self.tau:
+                    claim.model_cited, claim.cited = claim.cited, [c.id for c in cand]
+                    claim.score, claim.verified = score, True
+                    break
+        return claims
+
     def check(self, claims: list[Claim], by_id: dict[str, Chunk]) -> list[Claim]:
         for claim in claims:
             sources = [by_id[i] for i in claim.cited if i in by_id]
             if not sources:
                 claim.verified, claim.score = False, 0.0
                 continue
-            premises = [p for s in sources for p in self.premises(s)]
-            if len(sources) > 1:
-                # a two-hop claim joins facts from several chunks, so no single chunk entails it
-                premises.append(self.joint_premise(sources))
-            claim.score = max(self.entailment(p, claim.text) for p in premises)
+            claim.score = self.support(claim.text, sources)
             claim.verified = claim.score >= self.tau
         return claims

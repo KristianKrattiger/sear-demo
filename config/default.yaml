@@ -17,6 +17,7 @@ generator:
 verifier:
   model: cross-encoder/nli-deberta-v3-base
   tau: 0.5             # entailment threshold (TBM)
+  repair_citations: true  # re-cite failed claims against other retrieved chunks; the UI shows the correction
 
 gate:
   phi: 0.5             # min verified fraction before failure state (TBM)

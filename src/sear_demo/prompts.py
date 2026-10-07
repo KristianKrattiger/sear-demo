@@ -2,6 +2,7 @@ GENERATE = """Answer the question using ONLY the sources below.
 Every sentence must end with one or more source IDs in square brackets, like [f0001-c03].
 If a sentence combines facts from more than one source, cite every source it uses, like [f0001-c01][f0001-c02].
 If the sources do not answer the question, reply exactly: NOT SUPPORTED
+In that case write nothing else: do not guess, and do not name people, dates or facts the sources do not contain.
 
 Sources:
 {sources}

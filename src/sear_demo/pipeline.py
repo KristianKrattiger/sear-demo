@@ -32,6 +32,8 @@ class Sear:
             claims = segment(text)
             allowed = {c.id: c for c in retrieved}
             self.verifier.check(claims, allowed)
+            if self.cfg["verifier"].get("repair_citations", True):
+                self.verifier.repair(claims, retrieved)
             attach_attention(claims, trace, chunk_spans=None)
             report.claims = claims
             report.failed = not gate(claims, self.cfg["gate"]["phi"])
