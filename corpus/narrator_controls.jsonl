@@ -16,3 +16,4 @@
 {"id": "n04-inevidence", "probe": "n04", "type": "in-evidence swap", "find": "Rick gives up Ilsa", "to": "Laszlo gives up Ilsa"}
 {"id": "n04-role", "probe": "n04", "type": "reversal", "find": "Rick shoots the German Major Strasser", "to": "Major Strasser shoots Rick"}
 {"id": "n04-initial", "probe": "n04", "type": "initial-name swap", "find": "Rick shoots the German Major Strasser", "to": "Sam shoots the German Major Strasser"}
+{"id": "n04-initial-unknown", "probe": "n04", "type": "initial-name swap", "find": "Rick shoots the German Major Strasser", "to": "Henreid shoots the German Major Strasser"}

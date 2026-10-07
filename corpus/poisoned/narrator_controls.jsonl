@@ -7,3 +7,4 @@
 {"id": "n06-inevidence", "probe": "n06", "type": "in-evidence swap", "find": "the Pequod", "to": "the Indianapolis", "also": ["USS Indianapolis"]}
 {"id": "n06-role", "probe": "n06", "type": "reversal", "find": "The shark is ultimately killed by Brody", "to": "Brody is ultimately killed by the shark", "gate": {"find": "Brody finally kills the shark", "to": "The shark finally kills Brody"}}
 {"id": "n06-initial", "probe": "n06", "type": "initial-name swap", "find": "Quint is known for delivering", "to": "Benchley is known for delivering", "gate": {"find": "Quint delivers", "to": "Benchley delivers"}}
+{"id": "n06-initial-unknown", "probe": "n06", "type": "initial-name swap", "find": "Quint is known for delivering", "to": "Williams is known for delivering", "gate": {"find": "Quint delivers", "to": "Williams delivers"}}
