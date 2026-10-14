@@ -2,6 +2,8 @@
 
 A small, honest demo of **SEAR** (Sparse Epistemically Anchored Reasoning), the constrained-inference layer of GIN.
 
+> **Which SEAR this is.** This demo is SEAR's verify-after stage (GIN ENG 01, Stages 0–1): the model generates freely, then every claim is checked against the corpus and dropped if it fails. GIN's own repository also implements the decode-time stage, a logits processor that lets the model emit only spans copied from the corpus. Both are SEAR, but the mechanisms differ: this one catches fabrication after the fact, and that one makes it unreachable.
+
 It shows three things on a hand-built film corpus:
 
 1. **Grounded answers.** Every claim cites a corpus chunk, and a verifier checks that the chunk actually supports it: an NLI model must find entailment, and every name and number in the claim must appear in the chunk (NLI alone read "won Best Animated Feature" as entailed by "won Best Picture").
